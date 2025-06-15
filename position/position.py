@@ -27,4 +27,9 @@ class PositionHub:
         #the one opened is not followed by any other
         pass
 
+    def closeLastPosition(self): 
+        if len(self.positions) is 0: raise "no open position"; 
+        if not (self.positions[-1].isOpen): raise "last position already closed"; 
+        self.positions[-1].close()
+
     
