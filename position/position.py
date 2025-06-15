@@ -38,7 +38,7 @@ class PositionHub:
 
     def closeLatestPosition(self): 
         self.checkConsitency(); 
-        if len(self.positions) is 0: raise "no open position"; 
+        if len(self.positions) is 0: raise "no positions existant"; 
 
         latestPosition: Position = self.positions[-1];
         if not (latestPosition.isOpen): return; #latest position already closed - stop here.
@@ -48,7 +48,8 @@ class PositionHub:
 
     def openNewPosition(self, amount): 
         #close old position automatically
-        closeLatestPosition(); 
+        if length >= 1: #when positions existant
+            closeLatestPosition(); 
 
         self.positions.append(Position((amount, self.length + 1)))
         self.checkConsitency();
