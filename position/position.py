@@ -12,7 +12,7 @@ class Position:
         if amount < 0: 
             raise "amount has to be bigger than 0";
         self.amount = amount; 
-        self.id = positionId; 
+        self.id = positionId; #maybe important later
         self.closedAt = None;
     def close(self,):
         if self.isOpen == True:
