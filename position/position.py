@@ -1,5 +1,9 @@
 
+from data import Data
 import datetime
+
+LIMIT = 10000
+SMALLEST_INVEST = 0.01
 
 class Position: 
     def __init__(self, amount, positionId): 
@@ -48,21 +52,29 @@ class PositionHub:
 
     def openNewPosition(self, amount): 
         #close old position automatically
+        if amount < SMALLEST_INVEST: raise "stop here. amount should be bigger than smallest possible invest"; 
         if length >= 1: #when positions existant
             closeLatestPosition(); 
-
         self.positions.append(Position((amount, self.length + 1)))
         self.checkConsitency();
         self.length+=1 #id defined via length
             
 
-LIMIT = 10000
-class PositionSimulation: 
+class PositionSimulation:  #this only evaluates the 
     def __init__(self, balance, limit=LIMIT):
         self.positionHub = PositionHub(); 
         self.balance = balance; 
-        self.limit = limit #limit of investing assets
-        self.variation = None; #this will include the win and drawbacks for every tick
+        self.limit = limit; #limit of investing assets
+        self.variation = None; #this will include the proft and loss for every tick 
+        #-> maybe better to put this into the position? 
+        #nope - the idea is to calculate that 'live' in the reevaluation
+        #this can be actually visualized
+
+        self.episode = 0 #number of episodes iterated on
+        self.data = Data(); #as of now just dummy data
+        #will be iterated on later to calculate loss profit 
+
+
     def reevaluate(): 
         pass
 
