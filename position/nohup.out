@@ -1,0 +1,13 @@
+[11,186] [PARSE ERROR] The application is trying to use xterm's modifyOtherKeys. This is superseded by the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/ the application should be updated to use that
+[11,236] [PARSE ERROR] Unknown DCS escape code: zz
+[11,236] [PARSE ERROR] Unknown CSI code: 'm' with start_modifier: '␀' and end_modifier: '%' and parameters: '0'
+[11,776] [PARSE ERROR] Unknown CSI code: 'm' with start_modifier: '?' and end_modifier: '␀' and parameters: '4'
+[35,150] [PARSE ERROR] The application is trying to use xterm's modifyOtherKeys. This is superseded by the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/ the application should be updated to use that
+[35,164] [PARSE ERROR] The application is trying to use xterm's modifyOtherKeys. This is superseded by the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/ the application should be updated to use that
+[116,975] [PARSE ERROR] The application is trying to use xterm's modifyOtherKeys. This is superseded by the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/ the application should be updated to use that
+[117,024] [PARSE ERROR] Unknown DCS escape code: zz
+[117,024] [PARSE ERROR] Unknown CSI code: 'm' with start_modifier: '␀' and end_modifier: '%' and parameters: '0'
+[117,618] [PARSE ERROR] Unknown CSI code: 'm' with start_modifier: '?' and end_modifier: '␀' and parameters: '4'
+[122,733] [PARSE ERROR] The application is trying to use xterm's modifyOtherKeys. This is superseded by the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/ the application should be updated to use that
+[122,733] [PARSE ERROR] The application is trying to use xterm's modifyOtherKeys. This is superseded by the kitty keyboard protocol: https://sw.kovidgoyal.net/kitty/keyboard-protocol/ the application should be updated to use that
+[123691,677] [glfw error 65544]: Wayland: fatal display error: Datenübergabe unterbrochen (broken pipe)
