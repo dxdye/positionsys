@@ -1,6 +1,10 @@
 from enum import Enum;
 import requests; 
+from datetime import datetime; 
 import urllib; 
+
+START = datetime(2025, 6, 1, 0, 0); 
+END = datetime(2025, 6, 30, 0, 0); 
 
 class AlpacaAvailablePairs(Enum): 
     BTCUSD = "BTC/USD"
@@ -16,18 +20,22 @@ class Endpoint(Enum):
     ALPACAEP0 = "https://data.alpaca.markets/v1beta3/crypto/us/bars?" #endpoint 0
 
 class Data:
-    def __init__(self, symbol: AlpacaAvailablePairs, timeFrame: TimeFrame, limit: int = 1000, endpoint: Endpoint = Endpoint.ALPACAEP0, fetchedFromRemote: bool = True):
+    def __init__(self, symbol: AlpacaAvailablePairs, timeFrame: TimeFrame, start:datetime = START, end: datetime = END,  limit: int = 1000, endpoint: Endpoint = Endpoint.ALPACAEP0, fetchedFromRemote: bool = True):
         self.symbol = symbol; 
         self.timeFrame = timeFrame; 
         self.ep = endpoint; 
         self.limit = limit;  
         self.fetchedFromRemote = fetchedFromRemote; 
+        self.start = start; 
+        self.end = end; 
         #self.fetchFromRemote();  could be defaultly executed..
     def buildUrl(self): 
         url = self.ep.value; 
-        params = {'limit': str(self.limit), 'timeframe': self.timeFrame.value, 'symbols': self.symbol.value,}
+        start = self.start.strftime('%Y-%m-%d')
+        end = self.end.strftime('%Y-%m-%d')
+        params = {'limit': str(self.limit), 'timeframe': self.timeFrame.value, 'symbols': self.symbol.value,
+                    'start': start, 'end': end } # RFC-3339
         url += urllib.parse.urlencode(params);
-        print(url) 
         return url; 
 
     def fetchFromRemote(self):
@@ -41,8 +49,6 @@ class Data:
             return r.status_code; 
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
-        
-
 
     def getFromFile(self):
         pass
