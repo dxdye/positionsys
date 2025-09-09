@@ -1,19 +1,23 @@
 # positionsys
 Position system is API for trading bots and gets data
 
+## install 
+
+```
+git switch main && git pull
+```
+and then..
+```
+pixi install 
+```
 
 ## testing 
 ```
-py src/test.py
+pixi run test
 ```
-
-## execute
-
-main will be filled with the basic instructions for a simulation
-
+or 
 ```
-pip install -r src/requirements.txt
-py src/main.py
+pixi run test::$CASE$
 ```
 
 
