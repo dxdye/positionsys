@@ -4,9 +4,8 @@ import data.data as mod
 
 sys.path.append("../")  # appends upper directory
 
-@when('i get data and compare status code')
 def testDataWorkflow():
-    # this is a stub which is not really a test.
+    """a stub which is not really a test."""
     data0 = mod.Data(
             symbol=mod.AlpacaAvailablePairs.BTCUSD, timeFrame=mod.TimeFrame.ONEDAY
             )
