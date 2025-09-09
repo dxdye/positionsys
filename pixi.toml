@@ -1,10 +1,21 @@
-[workspace]
-authors = ["dxdye <tilman.bertram@campudus.com>"]
-channels = ["conda-forge"]
-name = "positionsys"
-platforms = ["linux-64"]
-version = "0.1.0"
 
-[tasks]
+[project]
+name = "positionsys"
+version = "0.1.0"
+description = "framework with singulary position system for algo trading (trading bots)"
+authors = ["dxdye <s-tbertr@haw-landshut.de>"]
+channels = ["conda-forge"]
+platforms = ['linux-64']
 
 [dependencies]
+python = ">=3.8,<4.0"
+pytest = "==8.4.1"
+requests = "==2.32.4"
+
+[tool.pixi.scripts]
+test = "pytest"
+
+[tool.pixi.tasks.test]
+cmd = "pytest"
+help = "Run the test suite using pytest."
+
