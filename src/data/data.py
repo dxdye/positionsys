@@ -28,7 +28,9 @@ class Data:
         self.fetchedFromRemote = fetchedFromRemote; 
         self.start = start; 
         self.end = end; 
+        self.length = 0; 
         #self.fetchFromRemote();  could be defaultly executed..
+
     def buildUrl(self): 
         url = self.ep.value; 
         start = self.start.strftime('%Y-%m-%d')
@@ -44,11 +46,17 @@ class Data:
         try: 
             r = requests.get(url); # will be the data parsed into json
             r.raise_for_status(); 
-            self.data = r.json();
+            self.data = r.json()['bars']['BTC/USD']; #defaultly take those values
+            self.length = len(self.data); 
             print(self.data); 
+
             return r.status_code; 
+
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
+
+    def getDataLength(self): 
+        return self.length; 
 
     def getFromFile(self):
         pass
