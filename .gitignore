@@ -1,7 +1,10 @@
 __pycache__
 .pytest_cache
 nohup.out
+.ruff_cache
+
 
 # pixi environments
-.pixi/*
 !.pixi/config.toml
+.pixi/*
+
