@@ -1,5 +1,5 @@
 import sys
-sys.path.append("../")
-import data.data as data; 
-import position.position as position; 
 
+sys.path.append("../")
+import data.data as data
+import position.position as position
