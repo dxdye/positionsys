@@ -37,17 +37,17 @@ class PositionHub:
   def __init__(
     self,
   ):
-    self.positions: List[
+    self.positions: list[
       Position
     ] = []  # stack of positions LIFO
     length = 0
 
   # open new position
 
-  def checkConsitency():
-    if length == 0:
+  def checkConsitency(self):
+    if self.length == 0:
       return
-    if length != len(self.position):
+    if self.length != len(self.position):
       raise "length is representative for the positionId and should be updated accuratly"
     # is of type [position]
     # only last position can be open or closed
@@ -56,7 +56,7 @@ class PositionHub:
     for i in self.positions:
       if type(i) is not Position:
         raise "element is of wrong type"
-    if length > 1:
+    if self.length > 1:
       for i in range(self.position - 1):
         if self.positions[i].isOpen is True:
           raise "every position prior last should be closed"
@@ -79,8 +79,8 @@ class PositionHub:
     # close old position automatically
     if amount < SMALLEST_INVEST:
       raise "stop here. amount should be bigger than smallest possible invest"
-    if length >= 1:  # when positions existant
-      closeLatestPosition()
+    if self.length >= 1:  # when positions existant
+      self.closeLatestPosition()
     self.positions.append(
       Position((amount, self.length + 1))
     )
@@ -114,7 +114,7 @@ class PositionSimulation:  # this only evaluates the
     # Positionen operieren auf den Daten - Evaluation aller Positionen
     quantize = self.data.timeFrame
     iterations = self.data.getDataLength()
-    positions: [Position] = (
+    positions = (
       self.positionHub.getAllPositions()
     )
     for pos in positions:
