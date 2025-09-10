@@ -1,2 +1,0 @@
-pytest==8.4.1
-Requests==2.32.4
