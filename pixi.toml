@@ -27,6 +27,6 @@ help = "Run the test suite using pytest."
 [tasks]
 lint = "pylint src"
 fmt = "ruff format && ruff check"
-gendoc = { cmd = "sphinx-build -E -b html -d build/doctrees source build/html", cwd = "doc" }
+gendoc = { cmd = "sphinx-build -b html docs/ docs/_build/html" }
 "test::data" = { cmd = "pytest -q test_data.py && pytest -v ", cwd = "src/tests/" }
 
