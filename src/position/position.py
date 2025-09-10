@@ -69,8 +69,7 @@ class PositionHub:
         if not (latestPosition.isOpen):
             return  # latest position already closed - stop here.
         if self.latestPosition.closedAt is None:  ##dreifach hält besser
-            continue
-        self.latestPosition.close()
+            self.latestPosition.close()
 
     def openNewPosition(self, amount):
         # close old position automatically
