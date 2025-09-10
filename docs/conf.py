@@ -20,17 +20,18 @@ exclude_patterns = []
 
 
 extensions = [
-  "sphinx.ext.autodoc",
-  "sphinx.ext.doctest",
-  "sphinx.ext.intersphinx",
-  "sphinx.ext.todo",
-  "sphinx.ext.coverage",
-  "sphinx.ext.mathjax",
-  "sphinx.ext.ifconfig",
-  "sphinx.ext.viewcode",
-  "sphinx.ext.githubpages",
-  "sphinx.ext.napoleon",
-]
+        "sphinx.ext.autodoc",
+        "sphinx.ext.doctest",
+        "sphinx.ext.intersphinx",
+        "sphinx.ext.todo",
+        "sphinx.ext.coverage",
+        "sphinx.ext.mathjax",
+        "sphinx.ext.ifconfig",
+        "sphinx.ext.viewcode",
+        "sphinx.ext.githubpages",
+        "sphinx.ext.napoleon",
+        ]
+extensions.append('sphinx_autodoc_typehints')
 
 # Napoleon settings
 napoleon_google_docstring = True
@@ -56,5 +57,5 @@ import os
 import sys
 
 sys.path.insert(
-  0, os.path.abspath("../src")
-)  # Adjust path to include your `src` directory
+        0, os.path.abspath("../src")
+        )  # Adjust path to include your `src` directory
