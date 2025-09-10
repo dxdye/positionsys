@@ -2,6 +2,7 @@ __pycache__
 .pytest_cache
 nohup.out
 .ruff_cache
+build
 
 
 # pixi environments
