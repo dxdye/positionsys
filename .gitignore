@@ -3,6 +3,7 @@ __pycache__
 nohup.out
 .ruff_cache
 build
+_build
 
 
 # pixi environments
