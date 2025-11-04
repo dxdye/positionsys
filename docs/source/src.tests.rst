@@ -1,13 +1,13 @@
-src.data package
-================
+src.tests package
+=================
 
 Submodules
 ----------
 
-src.data.data module
---------------------
+src.tests.test\_data module
+---------------------------
 
-.. automodule:: src.data.data
+.. automodule:: src.tests.test_data
    :members:
    :undoc-members:
    :show-inheritance:
@@ -15,7 +15,7 @@ src.data.data module
 Module contents
 ---------------
 
-.. automodule:: src.data
+.. automodule:: src.tests
    :members:
    :undoc-members:
    :show-inheritance:

@@ -20,21 +20,21 @@ src.main module
 
 .. automodule:: src.main
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:
 
 src.test module
 ---------------
 
 .. automodule:: src.test
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
 
 .. automodule:: src
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:

@@ -9,13 +9,13 @@ src.position.position module
 
 .. automodule:: src.position.position
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
 
 .. automodule:: src.position
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:
