@@ -17,17 +17,19 @@ pylint = ">=3.3.8,<4"
 pytest-bdd = ">=7.3.0,<8"
 sphinx = ">=8.3.0,<9"
 sphinx-autodoc-typehints = ">=3.2.0,<4"
+jsonschema = ">=4.25.1,<5"
 
 [tool.pixi.scripts]
-test = "pytest"
+test = "pytest -s"
 
 [tool.pixi.tasks.test]
-cmd = "pytest"
+cmd = "pytest -s"
 help = "Run the test suite using pytest."
 
 [tasks]
 lint = "pylint src"
 fmt = "ruff format && ruff check"
 gendoc = { cmd = "sphinx-build -b html docs/ docs/_build/html" }
-"test::data" = { cmd = "pytest -q test_data.py && pytest -v ", cwd = "src/tests/" }
+"test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
+test = { cmd = "pytest -s", cwd = "src/tests/" }
 

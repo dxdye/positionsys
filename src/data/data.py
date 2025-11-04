@@ -2,7 +2,42 @@ import urllib
 from datetime import datetime
 from enum import Enum
 
+import jsonschema
 import requests
+
+ALPACA_BTC_SCHEMA = {
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "t": {"type": "string", "format": "date-time"},
+      "o": {"type": "number"},
+      "h": {"type": "number"},
+      "l": {"type": "number"},
+      "c": {"type": "number"},
+      "v": {"type": "number"},
+    },
+    "required": ["t", "o", "h", "l", "c", "v"],
+  },
+}
+
+
+def validateInstance(data, schema=ALPACA_BTC_SCHEMA):
+  """Validate data against a given JSON schema.
+  :param data: data to be validated
+  :param schema: JSON schema to validate against
+  :type data: any
+  :type schema: dict
+  :raises jsonschema.ValidationError: if the data does not conform to the schema
+  :return: None
+  :rtype: None
+  """
+  try:
+    jsonschema.validate(instance=data, schema=schema)
+    return data
+  except jsonschema.ValidationError as e:
+    print(f"Validation failed: {e.message}")
+
 
 START = datetime(2025, 6, 1, 0, 0)
 END = datetime(2025, 6, 30, 0, 0)

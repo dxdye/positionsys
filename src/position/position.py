@@ -172,9 +172,10 @@ class PositionSimulation:  # this only evaluates the
 
   def reevaluate(self):
     # Positionen operieren auf den Daten - Evaluation aller Positionen
-    quantize = self.data.timeFrame
     iterations = self.data.getDataLength()
+    data.validateInstance(self.data, data.ALPACA_BTC_SCHEMA)
     positions = self.positionHub.getAllPositions()
+    profitLossPerTick = []
     for pos in positions:
       # nun hier werden wir die Daten brauchen -> das Problem ist allerdings das
       # timestamps aufgerundet werden auf den jeweiligen nächsten tick
@@ -182,8 +183,19 @@ class PositionSimulation:  # this only evaluates the
       # eigentlich wären hier minütliche Datenpflicht
       # um jedoch einen ausreichenden Datenrahmen zu bekommen hätte man
       # die JSON verschiedener Responses zu konkatenieren.
-      pass
-
-  def bot(self):
-    # bot operiert auf den Daten und schließt/ öffnet Position
-    pass
+      if not pos.isOpen:
+        continue
+      else:
+        idx = pos.currentIdx
+        if idx >= iterations:
+          continue
+        dataPoint = self.data.getDataAtIndex(idx)
+        openPrice = dataPoint["o"]
+        closePrice = dataPoint["c"]
+        # for simplicity we use close price here
+        entryPrice = openPrice
+        currentPrice = closePrice
+        variation = (currentPrice - entryPrice) * pos.amount
+        profitLossPerTick.append(variation)
+    self.variation = profitLossPerTick
+    return profitLossPerTick
