@@ -1,5 +1,7 @@
 import sys
+
 from pytest_bdd import when
+
 import data.data as mod
 
 sys.path.append("../")  # appends upper directory

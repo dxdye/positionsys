@@ -29,3 +29,14 @@ using python sphinx (autodoc) to create a project's documentation
 pixi run gendoc
 ```
 
+
+## format & VsCode
+
+to format the project use 
+
+```
+pixi run fmt
+```
+
+or for single file format on save, 
+just install the default ruff extension for VsCode.
