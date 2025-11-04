@@ -1,4 +1,4 @@
 ignore = ["E703"]
-line-length = 60
+line-length = 120
 indent-width = 2
 #fix = true

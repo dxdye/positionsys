@@ -1,7 +1,8 @@
-from enum import Enum
-import requests
-from datetime import datetime
 import urllib
+from datetime import datetime
+from enum import Enum
+
+import requests
 
 START = datetime(2025, 6, 1, 0, 0)
 END = datetime(2025, 6, 30, 0, 0)
@@ -127,13 +128,9 @@ class Data:
       raise "resource should be fetched from file.. pls think about this."
     url = self.buildUrl()
     try:
-      r = requests.get(
-        url
-      )  # will be the data parsed into json
+      r = requests.get(url)  # will be the data parsed into json
       r.raise_for_status()
-      self.data = r.json()["bars"][
-        "BTC/USD"
-      ]  # defaultly take those values
+      self.data = r.json()["bars"]["BTC/USD"]  # defaultly take those values
       self.length = len(self.data)
       print(self.data)
       return r.status_code
