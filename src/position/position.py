@@ -1,15 +1,16 @@
 import sys
 
 sys.path.append("../")
-import data.data as data
 from datetime import datetime
+
+import data.data as data
 
 LIMIT = 10000
 SMALLEST_INVEST = 0.01
 
 
 class Position:
-  def __init__(self, amount, positionId):
+  def __init__(self, amount, positionId) -> None:
     self.createdAt = datetime.now()
     self.isOpen = True
     if amount < 0:
@@ -18,19 +19,33 @@ class Position:
     self.id = positionId  # maybe important later
     self.closedAt = None
 
-  def close(
-    self,
-  ):
+  def close(self) -> bool:
     if self.isOpen == True:
       self.isOpen = False
+
       self.closedAt = datetime.now()
     else:
       raise "position is already closed"
 
-  def createDummyPosition(self, begin, close, amount):
+  def createDummyPosition(
+    self, begin, close, amount
+  ) -> None:
     self.createdAt = begin
     self.closedAt = close
     self.amount = amount
+
+
+class StopLossPosition(Position):
+  def __init__(self, amount, positionId, stopLossPercent):
+    super().__init__(amount, positionId)
+    if stopLossPercent <= 0 or stopLossPercent >= 100:
+      raise "stopLossPercent has to be between 0 and 100"
+    self.stopLossPercent = stopLossPercent
+
+  def close(
+    self,
+  ):
+    super().close()
 
 
 class PositionHub:
@@ -114,9 +129,7 @@ class PositionSimulation:  # this only evaluates the
     # Positionen operieren auf den Daten - Evaluation aller Positionen
     quantize = self.data.timeFrame
     iterations = self.data.getDataLength()
-    positions = (
-      self.positionHub.getAllPositions()
-    )
+    positions = self.positionHub.getAllPositions()
     for pos in positions:
       # nun hier werden wir die Daten brauchen -> das Problem ist allerdings das
       # timestamps aufgerundet werden auf den jeweiligen nächsten tick

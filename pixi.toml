@@ -1,5 +1,5 @@
 
-[project]
+[workspace]
 name = "positionsys"
 version = "0.1.0"
 description = "framework with singulary position system for algo trading (trading bots)"

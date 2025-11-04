@@ -9,13 +9,13 @@ src.constants.constants module
 
 .. automodule:: src.constants.constants
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
 
 .. automodule:: src.constants
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:
