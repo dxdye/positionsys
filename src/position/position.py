@@ -1,9 +1,9 @@
 import sys
 
+from src.data import data
+
 sys.path.append("../")
 from datetime import datetime
-
-import data.data as data
 
 LIMIT = 10000
 SMALLEST_INVEST = 0.01
