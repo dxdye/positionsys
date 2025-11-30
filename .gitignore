@@ -4,6 +4,7 @@ nohup.out
 .ruff_cache
 build
 _build
+docs
 
 
 # pixi environments
