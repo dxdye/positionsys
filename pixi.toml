@@ -43,8 +43,14 @@ test = { cmd = "pytest -s", cwd = "src/tests/" }
 =======
 "test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
 test = { cmd = "pytest -s", cwd = "src/tests/" }
-gendoc = "pdoc src"
-"gendoc:persistent" = { cmd = "pdoc --html --output-dir docs --force src" }
+
+[tasks.docs]
+cmd = "pdoc src"
+env = { PYTHONPATH = "./src" }
+
+[tasks."docs:persistent"]
+cmd = "pdoc src -o docs"
+env = { PYTHONPATH = "./src" }
 
 [pypi-dependencies]
 alpaca-py = "*"
