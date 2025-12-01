@@ -37,7 +37,7 @@ test = { cmd = "pytest -s", cwd = "src/tests/" }
 cmd = "pdoc src"
 env = { PYTHONPATH = "./src" }
 
-[tasks."docs:persistent"]
+[tasks."docs:saved"]
 cmd = "pdoc src -o docs"
 env = { PYTHONPATH = "./src" }
 

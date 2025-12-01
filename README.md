@@ -23,11 +23,20 @@ pixi run test::$CASE$
 
 ## generate documentation
 
-using python sphinx (autodoc) to create a project's documentation
+to generate the doc out of this code, use the following commands: 
 
+to run it as web app on localhost: 
 ```
-pixi run gendoc
+pixi run docs
 ```
+
+to save it locally in a folder `./docs`: 
+```
+pixi run docs:stored
+```
+
+
+
 
 
 ## format & VsCode
