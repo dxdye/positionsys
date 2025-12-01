@@ -15,16 +15,10 @@ requests = "==2.32.4"
 ruff = ">=0.12.12,<0.13"
 pylint = ">=3.3.8,<4"
 pytest-bdd = ">=7.3.0,<8"
-<<<<<<< HEAD
-sphinx = ">=8.3.0,<9"
-sphinx-autodoc-typehints = ">=3.2.0,<4"
 jsonschema = ">=4.25.1,<5"
 alpaca-py = ">=0.43.2,<0.44"
-=======
-jsonschema = ">=4.25.1,<5"
 pdoc = ">=16.0.0,<17"
 git = ">=2.52.0,<3"
->>>>>>> d15718c (Setup pdoc and remove sphinx)
 
 [tool.pixi.scripts]
 test = "pytest -s"
@@ -36,11 +30,6 @@ help = "Run the test suite using pytest."
 [tasks]
 lint = "pylint src"
 fmt = "ruff format && ruff check"
-<<<<<<< HEAD
-gendoc = { cmd = "sphinx-build -b html docs/ docs/_build/html" }
-"test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
-test = { cmd = "pytest -s", cwd = "src/tests/" }
-=======
 "test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
 test = { cmd = "pytest -s", cwd = "src/tests/" }
 
@@ -52,7 +41,4 @@ env = { PYTHONPATH = "./src" }
 cmd = "pdoc src -o docs"
 env = { PYTHONPATH = "./src" }
 
-[pypi-dependencies]
-alpaca-py = "*"
->>>>>>> d15718c (Setup pdoc and remove sphinx)
 
