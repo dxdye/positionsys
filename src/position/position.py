@@ -1,12 +1,7 @@
-import sys
-
-sys.path.append("../")
 from datetime import datetime
 
-from src.data import data
-
-LIMIT = 10000
-SMALLEST_INVEST = 0.01
+from data import data
+from src.constants.constants import LIMIT, SMALLEST_INVEST
 
 
 def mapIndexToTime(timeFrame: data.TimeFrame, index: int) -> datetime:
