@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+from enum import Enum
+from typing import Type
 
 from src.constants.constants import LIMIT, SMALLEST_INVEST
 from src.data import data
@@ -183,6 +185,15 @@ class StopLossPosition(Position):
     self.incrementIdx()
 
 
+class PositionType(Enum):
+  """Enum for different types of positions."""
+
+  BASIC = "basic"
+  STOP_LOSS = "stop_loss"
+  TAKE_PROFIT = "take_profit"
+  # Add more position types as needed
+
+
 class PositionHub:
   """Class representing a hub for managing multiple trading positions.
   :param positions: List of positions managed by the hub.
@@ -192,6 +203,8 @@ class PositionHub:
   def __init__(self, timeFrame: data.TimeFrame = data.TimeFrame.ONEDAY):
     """Constructor for PositionHub class.
     Initializes the PositionHub object.
+    :param timeFrame: The timeframe for positions
+    :type timeFrame: data.TimeFrame
     :return: None
     :rtype: None
     """
@@ -199,7 +212,23 @@ class PositionHub:
     self.length = 0
     self.timeFrame = timeFrame
 
-  # open new position
+  # Position type mapping
+  @staticmethod
+  def _get_position_class(position_type: PositionType) -> Type[Position]:
+    """
+    Get the position class for a given position type.
+
+    :param position_type: Type of position to create
+    :type position_type: PositionType
+    :return: Position class
+    :rtype: Type[Position]
+    """
+    position_mapping = {
+      PositionType.BASIC: Position,
+      PositionType.STOP_LOSS: StopLossPosition,
+      # PositionType.TAKE_PROFIT: TakeProfitPosition,
+    }
+    return position_mapping.get(position_type, Position)
 
   def checkConsitency(self):
     """
@@ -209,19 +238,12 @@ class PositionHub:
     """
     if self.length == 0:
       return
-    if self.length != len(self.positions):  # Changed from self.position to self.positions
-      raise Exception("length is representative for the positionId and should be updated accuratly")
+    if self.length != len(self.positions):
+      raise Exception("length is representative for the positionId and should be updated accurately")
 
-    # is of type [position]
-    # only last position can be open or closed
-    # every other is closed
-    # the one opened is not followed by any other
-    for i in self.positions:
-      if type(i) is not Position:
-        raise Exception("element is of wrong type")
-
+    # Check that only last position can be open
     if self.length > 1:
-      for i in range(self.length - 1):  # Changed from self.position to self.length
+      for i in range(self.length - 1):
         if self.positions[i].isOpen is True:
           raise Exception("every position prior last should be closed")
     return
@@ -231,6 +253,7 @@ class PositionHub:
     Closes the latest position in the hub if it is open.
     :return: None
     :rtype: None
+    :raises TypeError: if no positions exist
     """
     if len(self.positions) == 0:
       raise TypeError("No positions exist to close")
@@ -241,44 +264,115 @@ class PositionHub:
     if latestPosition.isOpen:
       latestPosition.close()
 
-  def openNewPosition(self, amount, timeFrame=None, currentIdx=0):
+  def openNewPosition(
+    self,
+    amount: float,
+    timeFrame: data.TimeFrame = None,
+    currentIdx: int = 0,
+    position_type: PositionType = PositionType.BASIC,
+    **kwargs,
+  ):
     """
     Opens a new position with the given amount.
     If there is an existing position, it closes it first.
+
     :param amount: The amount to invest in the new position.
     :param timeFrame: The timeframe for the position (default: ONEDAY).
     :param currentIdx: The current index in the data.
+    :param position_type: Type of position to create (default: BASIC).
+    :param kwargs: Additional parameters for specific position types
+                   (e.g., stopLossPercent for STOP_LOSS positions)
     :type amount: float
     :type timeFrame: data.TimeFrame
     :type currentIdx: int
+    :type position_type: PositionType
     :raises Exception: if the amount is less than the smallest investment
     :return: None
     :rtype: None
     """
-    # close old position automatically
+    # Validate amount
     if amount < SMALLEST_INVEST:
       raise Exception("stop here. amount should be bigger than smallest possible invest")
 
     # Use default timeFrame if not provided
     if timeFrame is None:
-      timeFrame = data.TimeFrame.ONEDAY
+      timeFrame = self.timeFrame
 
-    if self.length >= 1:  # when positions existant
+    # Close existing position if any
+    if self.length >= 1:
       self.closeLatestPosition()
 
-    # Create position with correct arguments
-    position = Position(amount=amount, timeFrame=timeFrame, currentIdx=currentIdx)
+    # Get the appropriate position class
+    position_class = self._get_position_class(position_type)
+
+    # Create position with correct arguments based on type
+    if position_type == PositionType.STOP_LOSS:
+      stop_loss_percent = kwargs.get("stopLossPercent", 5.0)
+      position = position_class(
+        amount=amount,
+        timeFrame=timeFrame,
+        stopLossPercent=stop_loss_percent,
+        currentIdx=currentIdx,
+      )
+    elif position_type == PositionType.BASIC:
+      position = position_class(
+        amount=amount,
+        timeFrame=timeFrame,
+        currentIdx=currentIdx,
+      )
+    else:
+      position = position_class(
+        amount=amount,
+        timeFrame=timeFrame,
+        currentIdx=currentIdx,
+      )
+
+    # Add position to hub
     self.positions.append(position)
     self.checkConsitency()
-    self.length += 1  # id defined via length
+    self.length += 1
 
-  def getAllPositions(self):
+  def openPositionObject(self, position: Position):
+    """
+    Opens an existing position object.
+    Use this method to add pre-created position objects.
+
+    :param position: The position object to add
+    :type position: Position
+    :raises Exception: if the position is invalid
+    :return: None
+    :rtype: None
+    """
+    if not isinstance(position, Position):
+      raise TypeError("position must be an instance of Position or its subclasses")
+
+    # Close existing position if any
+    if self.length >= 1:
+      self.closeLatestPosition()
+
+    # Add position to hub
+    self.positions.append(position)
+    self.checkConsitency()
+    self.length += 1
+
+  def getAllPositions(self) -> list[Position]:
     """
     Retrieves all positions in the hub.
     :return: list of all positions
     :rtype: list[Position]
     """
     return self.positions
+
+  def getPositionsByType(self, position_type: Type[Position]) -> list[Position]:
+    """
+    Get all positions of a specific type.
+
+    :param position_type: The position class type to filter by
+    :type position_type: Type[Position]
+    :return: List of positions of the specified type
+    :rtype: list[Position]
+    """
+    return [pos for pos in self.positions if isinstance(pos, position_type)]
 
 
 class PositionSimulation:  # this only evaluates the

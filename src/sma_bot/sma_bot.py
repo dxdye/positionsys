@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 from src.bot.bot import Bot
 from src.data.data import Data, TimeFrame
-from src.position.position import Position, PositionHub, PositionSimulation, StopLossPosition
+from src.position.position import Position, PositionHub, PositionSimulation, PositionType
 
 
 class SMABot(Bot):
@@ -113,9 +113,11 @@ class SMABot(Bot):
 
     return "HOLD"
 
+  # ... existing code ...
+
   def _open_position(self, current_idx: int, current_price: float) -> str:
     """
-    Open a new position.
+    Open a new position with stop loss.
 
     :param current_idx: Current index in the data
     :param current_price: Current price
@@ -123,13 +125,13 @@ class SMABot(Bot):
     :rtype: str
     """
     try:
-      position = StopLossPosition(
+      self.position_hub.openNewPosition(
         amount=self.amount,
         timeFrame=self.timeFrame,
-        stopLossPercent=self.stop_loss_percent,
         currentIdx=current_idx,
+        position_type=PositionType.STOP_LOSS,
+        stopLossPercent=self.stop_loss_percent,
       )
-      self.position_hub.openNewPosition(amount=self.amount, timeFrame=self.timeFrame, currentIdx=current_idx)
       self.in_position = True
       self.last_entry_idx = current_idx
       self.trade_history.append(
@@ -141,8 +143,42 @@ class SMABot(Bot):
       )
       return "BUY"
     except Exception as e:
-      print(f"Error opening position: {e}")
+      print(f"Error opening position: {type(e).__name__}: {e}")
       return "HOLD"
+
+  def openPosition(self, priceData: List[float], currentIdx: int) -> Optional[str]:
+    """
+    Implementation of abstract method from bot interface.
+    Opens a new position based on price data.
+
+    :param priceData: Price data available up to current index
+    :param currentIdx: Current index in the data
+    :return: "BUY" if successful, "HOLD" otherwise
+    :rtype: Optional[str]
+    """
+    if self._should_open_position(priceData):
+      try:
+        self.position_hub.openNewPosition(
+          amount=self.amount,
+          timeFrame=self.timeFrame,
+          currentIdx=currentIdx,
+          position_type=PositionType.STOP_LOSS,
+          stopLossPercent=self.stop_loss_percent,
+        )
+        self.in_position = True
+        self.last_entry_idx = currentIdx
+        self.trade_history.append(
+          {
+            "type": "BUY",
+            "idx": currentIdx,
+            "price": priceData[-1],
+          }
+        )
+        return "BUY"
+      except Exception as e:
+        print(f"Error opening position: {type(e).__name__}: {e}")
+        return "HOLD"
+    return "HOLD"
 
   def _close_position(self, current_idx: int, current_price: float) -> str:
     """
@@ -167,31 +203,6 @@ class SMABot(Bot):
     except Exception as e:
       print(f"Error closing position: {e}")
       return "HOLD"
-
-  def openPosition(self, priceData: List[float], currentIdx: int) -> Optional[Position]:
-    """
-    Implementation of abstract method from Bot interface.
-    Opens a new position based on price data.
-
-    :param priceData: Price data available up to current index
-    :param currentIdx: Current index in the data
-    :return: The opened position or None
-    :rtype: Optional[Position]
-    """
-    if self._should_open_position(priceData):
-      try:
-        position = StopLossPosition(
-          amount=self.amount,
-          timeFrame=self.timeFrame,
-          stopLossPercent=self.stop_loss_percent,
-          currentIdx=currentIdx,
-        )
-        self.position_hub.openNewPosition(position)
-        return position
-      except Exception as e:
-        print(f"Error opening position: {e}")
-        return None
-    return None
 
   def closePosition(self, position: Position, priceData: List[float]) -> bool:
     """
