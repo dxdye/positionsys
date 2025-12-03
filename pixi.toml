@@ -30,8 +30,11 @@ help = "Run the test suite using pytest."
 [tasks]
 lint = "pylint src"
 fmt = "ruff format && ruff check"
-"test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
+
 test = { cmd = "pytest -s", cwd = "src/tests/" }
+"test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
+"test::sma_bot" = { cmd = "pytest -s test_sma_bot.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
+"test::position" = { cmd = "pytest -s test_position.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
 
 [tasks.docs]
 cmd = "pdoc src"
