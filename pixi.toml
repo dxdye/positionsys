@@ -19,6 +19,7 @@ jsonschema = ">=4.25.1,<5"
 alpaca-py = ">=0.43.2,<0.44"
 pdoc = ">=16.0.0,<17"
 git = ">=2.52.0,<3"
+pytest-mock = ">=3.15.1,<4"
 
 [tool.pixi.scripts]
 test = "pytest -s"
@@ -32,7 +33,7 @@ lint = "pylint src"
 fmt = "ruff format && ruff check"
 
 test = { cmd = "pytest -s", cwd = "src/tests/" }
-"test::data" = { cmd = "pytest -s -q test_data.py && pytest -v ", cwd = "src/tests/" }
+"test::data" = { cmd = "pytest -s test_data.py", cwd = "src/tests/" }
 "test::sma_bot" = { cmd = "pytest -s test_sma_bot.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
 "test::position" = { cmd = "pytest -s test_position.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
 

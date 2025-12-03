@@ -37,6 +37,7 @@ def validateInstance(data, schema=ALPACA_BTC_SCHEMA):
     return data
   except jsonschema.ValidationError as e:
     print(f"Validation failed: {e.message}")
+    raise
 
 
 START = datetime(2025, 6, 1, 0, 0)
@@ -171,7 +172,6 @@ class Data:
       r.raise_for_status()
       self.data = r.json()["bars"]["BTC/USD"]  # defaultly take those values
       self.length = len(self.data)
-      print(self.data)
       return r.status_code
     except requests.exceptions.HTTPError as err:
       raise SystemExit(err)
