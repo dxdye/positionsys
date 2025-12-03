@@ -1,15 +1,24 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from typing import Optional
 
 import src.position.position as position
 
 
-class bot:  # trading bot interface
+class Bot(ABC):  # trading bot interface
   """
   Abstract base class for a trading bot interface.
   Provides methods to open and close positions, and to act on each tick of price data.
   """
 
-  def __init__(self, name):
+  def __init__(self, name: str) -> None:
+    """
+    Initialize the bot with a name.
+
+    :param name: Name identifier for the bot
+    :type name: str
+    :return: None
+    :rtype: None
+    """
     self.name = name
 
   @abstractmethod
@@ -24,7 +33,7 @@ class bot:  # trading bot interface
     pass
 
   @abstractmethod
-  def openPosition(self, priceData, currentIdx: int) -> position.Position | None:
+  def openPosition(self, priceData, currentIdx: int) -> Optional[position.Position]:
     """
     Opens a new position based on the provided price data and current index.
     Returns the newly opened position or None if no position is opened.
