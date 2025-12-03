@@ -30,7 +30,7 @@ def mapIndexToTime(timeFrame: data.TimeFrame, index: int) -> datetime:
   elif timeFrame == data.TimeFrame.FOURHOURS:
     return now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=4 * index)
   else:
-    raise "unsupported timeframe"
+    raise TypeError("unsupported timeframe")
 
 
 class Position:
@@ -47,7 +47,7 @@ class Position:
   """
 
   def __set_amount(self, value: float) -> None:
-    if value < 0:
+    if value <= 0:
       raise ValueError("amount has to be bigger than 0")
     self.amount = value
 
@@ -89,13 +89,13 @@ class Position:
     :return: None
     :rtype: None
     """
-    self.createdAt = mapIndexToTime(timeFrame, currentIdx)
-    self.isOpen = True
-    self.closedAt = None
 
     self.__set_idx(currentIdx)
     self.__set_amount(amount)
     self.__set_timeframe(timeFrame)
+    self.createdAt = mapIndexToTime(timeFrame, currentIdx)
+    self.isOpen = True
+    self.closedAt = None
 
   def close(self) -> bool:  # gets called each tick to check if position should be closed
     """
@@ -189,7 +189,7 @@ class PositionHub:
   :type positions: list[Position]
   :return: None"""
 
-  def __init__(self):
+  def __init__(self, timeFrame: data.TimeFrame = data.TimeFrame.ONEDAY):
     """Constructor for PositionHub class.
     Initializes the PositionHub object.
     :return: None
@@ -197,6 +197,7 @@ class PositionHub:
     """
     self.positions: list[Position] = []  # stack of positions LIFO
     self.length = 0
+    self.timeFrame = timeFrame
 
   # open new position
 
@@ -208,19 +209,21 @@ class PositionHub:
     """
     if self.length == 0:
       return
-    if self.length != len(self.position):
-      raise "length is representative for the positionId and should be updated accuratly"
+    if self.length != len(self.positions):  # Changed from self.position to self.positions
+      raise Exception("length is representative for the positionId and should be updated accuratly")
+
     # is of type [position]
     # only last position can be open or closed
     # every other is closed
     # the one opened is not followed by any other
     for i in self.positions:
       if type(i) is not Position:
-        raise "element is of wrong type"
+        raise Exception("element is of wrong type")
+
     if self.length > 1:
-      for i in range(self.position - 1):
+      for i in range(self.length - 1):  # Changed from self.position to self.length
         if self.positions[i].isOpen is True:
-          raise "every position prior last should be closed"
+          raise Exception("every position prior last should be closed")
     return
 
   def closeLatestPosition(self):
@@ -229,22 +232,25 @@ class PositionHub:
     :return: None
     :rtype: None
     """
-    self.checkConsitency()
     if len(self.positions) == 0:
-      raise "no positions existant"
+      raise TypeError("No positions exist to close")
 
-    latestPosition: Position = self.positions[-1]
-    if not (latestPosition.isOpen):
-      return  # latest position already closed - stop here.
-    if self.latestPosition.closedAt is None:  ##dreifach hält besser
-      self.latestPosition.close()
+    latestPosition = self.positions[-1]
 
-  def openNewPosition(self, amount):
+    # Only close if position is open
+    if latestPosition.isOpen:
+      latestPosition.close()
+
+  def openNewPosition(self, amount, timeFrame=None, currentIdx=0):
     """
     Opens a new position with the given amount.
     If there is an existing position, it closes it first.
     :param amount: The amount to invest in the new position.
+    :param timeFrame: The timeframe for the position (default: ONEDAY).
+    :param currentIdx: The current index in the data.
     :type amount: float
+    :type timeFrame: data.TimeFrame
+    :type currentIdx: int
     :raises Exception: if the amount is less than the smallest investment
     :return: None
     :rtype: None
@@ -253,9 +259,16 @@ class PositionHub:
     if amount < SMALLEST_INVEST:
       raise Exception("stop here. amount should be bigger than smallest possible invest")
 
+    # Use default timeFrame if not provided
+    if timeFrame is None:
+      timeFrame = data.TimeFrame.ONEDAY
+
     if self.length >= 1:  # when positions existant
       self.closeLatestPosition()
-    self.positions.append(Position((amount, self.length + 1)))
+
+    # Create position with correct arguments
+    position = Position(amount=amount, timeFrame=timeFrame, currentIdx=currentIdx)
+    self.positions.append(position)
     self.checkConsitency()
     self.length += 1  # id defined via length
 
