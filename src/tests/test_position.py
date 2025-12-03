@@ -252,17 +252,21 @@ class TestPositionHub:
     hub = PositionHub()
     hub.openNewPosition(1.0)
 
-    assert len(hub.positions) > 0
+    # Verify position was created
+    assert len(hub.positions) > 0, "Position was not created"
+    assert hub.positions[-1].isOpen is True, "Position should be open"
+
+    # Close the position
     hub.closeLatestPosition()
 
-    # Note: Due to bugs in the current implementation, this might not work perfectly
-    # but we test the intended behavior
+    # Verify position was closed
+    assert hub.positions[-1].isOpen is False, "Position should be closed"
 
   def test_position_hub_close_latest_position_empty(self):
     """Test that closing position on empty hub raises exception."""
     hub = PositionHub()
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="No positions exist to close"):
       hub.closeLatestPosition()
 
 
