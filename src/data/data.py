@@ -60,7 +60,11 @@ class TimeFrame(Enum):
   """
 
   ONEDAY = "1D"
-  ONEMONTH = "1M"
+  ONEHOUR = "1H"
+  FIVEMINUTES = "5M"
+  FIFTEENMINUTES = "15M"
+  ONEMINUTE = "1M"
+  FOURHOURS = "4H"
 
 
 class Endpoint(Enum):

@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from data import data
 from src.constants.constants import LIMIT, SMALLEST_INVEST
+from src.data import data
 
 
 def mapIndexToTime(timeFrame: data.TimeFrame, index: int) -> datetime:
@@ -31,10 +31,6 @@ def mapIndexToTime(timeFrame: data.TimeFrame, index: int) -> datetime:
     return now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=4 * index)
   else:
     raise "unsupported timeframe"
-
-
-def timedelta(**kwargs):
-  return datetime.now() - datetime.now().replace(**kwargs)
 
 
 class Position:

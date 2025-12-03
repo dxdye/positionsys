@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-import position.position as position
+import src.position.position as position
 
 
 class bot:  # trading bot interface
