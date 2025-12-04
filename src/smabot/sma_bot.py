@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 from src.bot.bot import Bot
 from src.data.data import Data, TimeFrame
-from src.position.position import Position, PositionHub, PositionSimulation, PositionType
+from src.position.position import PositionHub, PositionSimulation, PositionType
 
 
 class SMABot(Bot):
@@ -60,7 +60,6 @@ class SMABot(Bot):
     if not isinstance(timeFrame, TimeFrame):
       raise ValueError("data.timeFrame must be a TimeFrame enum")
 
-    self.position_hub: PositionHub = PositionHub()
     self.simulation: PositionSimulation = PositionSimulation(data)
     self.short_window: int = short_window
     self.long_window: int = long_window
@@ -69,12 +68,12 @@ class SMABot(Bot):
     self.in_position: bool = False
     self.last_entry_idx: int = 0
     self.timeFrame: Optional[TimeFrame] = getattr(data, "timeFrame", None)
-    self.trade_history: List[Dict] = []
     self.data = data
 
   def calculate_sma(self, prices: List[float], window: int) -> Optional[float]:
     """
     Calculate the Simple Moving Average for a given window.
+    This function only exists in the SMABot class to encapsulate SMA logic.
 
     :param prices: List of prices
     :param window: Window size for SMA calculation
@@ -113,8 +112,6 @@ class SMABot(Bot):
 
     return "HOLD"
 
-  # ... existing code ...
-
   def _open_position(self, current_idx: int, current_price: float) -> str:
     """
     Open a new position with stop loss.
@@ -146,40 +143,6 @@ class SMABot(Bot):
       print(f"Error opening position: {type(e).__name__}: {e}")
       return "HOLD"
 
-  def openPosition(self, priceData: List[float], currentIdx: int) -> Optional[str]:
-    """
-    Implementation of abstract method from bot interface.
-    Opens a new position based on price data.
-
-    :param priceData: Price data available up to current index
-    :param currentIdx: Current index in the data
-    :return: "BUY" if successful, "HOLD" otherwise
-    :rtype: Optional[str]
-    """
-    if self._should_open_position(priceData):
-      try:
-        self.position_hub.openNewPosition(
-          amount=self.amount,
-          timeFrame=self.timeFrame,
-          currentIdx=currentIdx,
-          position_type=PositionType.STOP_LOSS,
-          stopLossPercent=self.stop_loss_percent,
-        )
-        self.in_position = True
-        self.last_entry_idx = currentIdx
-        self.trade_history.append(
-          {
-            "type": "BUY",
-            "idx": currentIdx,
-            "price": priceData[-1],
-          }
-        )
-        return "BUY"
-      except Exception as e:
-        print(f"Error opening position: {type(e).__name__}: {e}")
-        return "HOLD"
-    return "HOLD"
-
   def _close_position(self, current_idx: int, current_price: float) -> str:
     """
     Close the latest position.
@@ -203,38 +166,6 @@ class SMABot(Bot):
     except Exception as e:
       print(f"Error closing position: {e}")
       return "HOLD"
-
-  def closePosition(self, position: Position, priceData: List[float]) -> bool:
-    """
-    Implementation of abstract method from Bot interface.
-    Closes the given position.
-
-    :param position: The position to close
-    :param priceData: Current price data
-    :return: True if position was closed, False otherwise
-    :rtype: bool
-    """
-    try:
-      if position in self.position_hub.getAllPositions():
-        self.position_hub.closeLatestPosition()
-        return True
-      return False
-    except Exception as e:
-      print(f"Error closing position: {e}")
-      return False
-
-  def actOnTick(self, priceData: List[float], currentIdx: int) -> None:
-    """
-    Implementation of abstract method from Bot interface.
-    Acts on each tick of price data.
-
-    :param priceData: Price data up to current index
-    :param currentIdx: Current index in the data
-    :return: None
-    :rtype: None
-    """
-    decision = self.decide_and_trade(priceData, currentIdx)
-    print(f"Tick {currentIdx}: {decision} | Price: {priceData[-1]:.2f}")
 
   def _should_open_position(self, prices: List[float]) -> bool:
     """
@@ -268,33 +199,6 @@ class SMABot(Bot):
     # Evaluate profit/loss
     profit_loss = self.simulation.reevaluate()
     return self.trade_history, profit_loss
-
-  def get_positions(self) -> List[Position]:
-    """
-    Get all positions managed by the Bot.
-
-    :return: List of all positions
-    :rtype: List[Position]
-    """
-    return self.position_hub.getAllPositions()
-
-  def get_trade_history(self) -> List[Dict]:
-    """
-    Get the Bot's trade history.
-
-    :return: List of all trades executed
-    :rtype: List[Dict]
-    """
-    return self.trade_history
-
-  def get_open_positions_count(self) -> int:
-    """
-    Get the number of currently open positions.
-
-    :return: Number of open positions
-    :rtype: int
-    """
-    return len([p for p in self.get_positions() if p.isOpen])
 
   def reset(self) -> None:
     """Reset the Bot to its initial state."""

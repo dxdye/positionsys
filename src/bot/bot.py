@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Dict, List, Tuple
 
-import src.position.position as position
+from src.position.position import Position, PositionHub
 
 
 class Bot(ABC):  # trading bot interface
@@ -14,41 +14,108 @@ class Bot(ABC):  # trading bot interface
     """
     Initialize the bot with a name.
 
+    every bot has an instance of PositionHub (or a Subclass of it) to manage positions.
+    it also has a trade history to log all executed trades.
+
     :param name: Name identifier for the bot
     :type name: str
     :return: None
     :rtype: None
     """
+
     self.name = name
+    self.trade_history: List[Dict] = []
+
+    self.position_hub: PositionHub = PositionHub()
 
   @abstractmethod
-  def closePosition(self, position: position.Position, priceData) -> bool:
+  def _close_position(self, current_idx: int, current_price: float) -> str:
     """
-    Closes the given position based on the provided price data.
-    Returns True if the position was successfully closed, False otherwise.
-    :param position: The position to be closed.
-    :param priceData: The price data used to determine the closing conditions.
-    :return: bool indicating success of closing the position.
+    Mandatory and private: Close the latest position.
+
+    :param current_idx: Current index in the data
+    :param current_price: Current price
+    :return: "SELL" if successful, "HOLD" otherwise
+    :rtype: str
     """
-    pass
 
   @abstractmethod
-  def openPosition(self, priceData, currentIdx: int) -> Optional[position.Position]:
+  def _open_position(self, current_idx: int, current_price: float) -> str:
     """
-    Opens a new position based on the provided price data and current index.
-    Returns the newly opened position or None if no position is opened.
-    :param priceData: The price data used to determine the opening conditions.
-    :param currentIdx: The current index in the price data.
-    :return: The newly opened position or None.
+    Mandatory and private: Open a new position.
+    The percentage of the stop loss is bot-specific.
+
+    :param current_idx: Current index in the data
+    :param current_price: Current price
+    :return: "BUY" if successful, "HOLD" otherwise
+    :rtype: str
     """
-    pass
 
   @abstractmethod
-  def actOnTick(self, priceData, currentIdx: int) -> None:
+  def _should_open_position(self, prices: List[float]) -> bool:
     """
-    Acts on each tick of price data at the given current index.
-    :param priceData: The price data for the current tick.
-    :param currentIdx: The current index in the price data.
-    :return: None
+    Mandatory and private: Determine if a new position should be opened.
+
+    :param prices: List of prices
+    :return: True if position should be opened, False otherwise
+    :rtype: bool
     """
-    pass
+
+  @abstractmethod
+  def decide_and_trade(self, prices: List[float], current_idx: int) -> str:
+    """
+    Mandatory: Decide whether to open or close a position based on the provided prices
+    and current index. Executes the trade if conditions are met.
+
+    :param prices: List of prices
+    :param current_idx: Current index in the data
+    :return: "BUY", "SELL", or "HOLD" based on the decision
+    :rtype: str
+    """
+
+  @abstractmethod
+  def run(self) -> Tuple[List[Dict], float]:
+    """
+    Mandatory: Run the Bot through all data points and execute trades.
+    Utilizes the decide_and_trade method for each tick.
+    Also it reevaluates all positions at the end to calculate profit/loss.
+    And the returns as Tuple of trade history and profit/loss (float).
+    For better understand the run method, look at the SMABot implementation.
+
+    :return: Tuple of (trade_history, profit_loss)
+    :rtype: Tuple[List[Dict], float]
+    """
+
+  @abstractmethod
+  def reset(self) -> None:
+    """
+    Define a reset function for testing or re-running the bot.
+    """
+
+  # Getter
+  def get_trade_history(self) -> List[Dict]:
+    """
+    Get the Bot's trade history.
+
+    :return: List of all trades executed
+    :rtype: List[Dict]
+    """
+    return self.trade_history
+
+  def get_open_positions_count(self) -> int:
+    """
+    Get the number of currently open positions.
+
+    :return: Number of open positions
+    :rtype: int
+    """
+    return len([p for p in self.get_positions() if p.isOpen])
+
+  def get_positions(self) -> List[Position]:
+    """
+    Get all positions managed by the Bot.
+
+    :return: List of all positions
+    :rtype: List[Position]
+    """
+    return self.position_hub.getAllPositions()
