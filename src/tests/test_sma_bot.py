@@ -1,11 +1,10 @@
 # Add this at the top of the file to help debug
-import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from src.data.data import TimeFrame
-from src.position.position import Position, PositionHub, StopLossPosition
+from src.position.position import Position, StopLossPosition
 from src.sma_bot.sma_bot import SMABot
 
 
@@ -347,7 +346,7 @@ class TestSMABotAbstractInterface:
   def test_open_position_interface_method(self, sma_bot):
     """Test openPosition interface method."""
     prices = [100, 102, 104, 106, 108, 110, 112]
-    position = sma_bot.openPosition(prices, current_idx=6)
+    position = sma_bot.openPosition(prices, currentIdx=6)
 
     assert position is not None
     assert isinstance(position, Position)
@@ -357,7 +356,7 @@ class TestSMABotAbstractInterface:
     prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
 
     # Open position first
-    sma_bot.openPosition(prices[:8], current_idx=7)
+    sma_bot.openPosition(prices[:8], currentIdx=7)
     position = sma_bot.get_positions()[0]
 
     # Close position
@@ -370,7 +369,7 @@ class TestSMABotAbstractInterface:
     prices = [100, 102, 104, 106, 108, 110, 112]
 
     # Should execute without error
-    sma_bot.actOnTick(prices, current_idx=6)
+    sma_bot.actOnTick(prices, currentIdx=6)
 
     # Verify it made a decision
     assert len(sma_bot.get_trade_history()) > 0 or sma_bot.in_position is True or sma_bot.in_position is False
@@ -393,12 +392,12 @@ class TestSMABotCompleteWorkflow:
     assert len(sma_bot.get_positions()) == 0
 
     # BUY
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)
+    sma_bot.decide_and_trade(prices[:8], currentIdx=7)
     assert sma_bot.in_position is True
     assert len(sma_bot.get_positions()) == 1
 
     # SELL
-    sma_bot.decide_and_trade(prices, current_idx=12)
+    sma_bot.decide_and_trade(prices, currentIdx=12)
     assert sma_bot.in_position is False
 
     # Verify trade history
