@@ -107,10 +107,10 @@ class Position:
     """
     if self.isOpen is True:
       self.isOpen = False
-
       self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
+      return True
     else:
-      raise "position is already closed"
+      raise RuntimeError("position is already closed")
 
   def forceClose(self) -> None:
     """
@@ -124,7 +124,7 @@ class Position:
 
       self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
     else:
-      raise "position is already closed"
+      raise ValueError("position is already closed")
 
   def incrementIdx(self) -> None:
     """
@@ -173,23 +173,32 @@ class StopLossPosition(Position):
 
   def close(self, currentPrice: float = None, entryPrice: float = None) -> bool:
     """
-    Closes the position, optionally checking stop-loss threshold first.
+    Closes the position if the current price falls below the stop-loss threshold.
 
-    :param currentPrice: The current price of the asset (optional)
-    :param entryPrice: The entry price of the position (optional)
-    :return: bool indicating success of closing the position
+    :param currentPrice: The current price of the asset (optional for force close).
+    :param entryPrice: The entry price of the position (optional for force close).
+    :return: bool indicating if position was closed
     :rtype: bool
     :raises ValueError: if position is already closed
     """
+    closed = False
+
     # If prices provided, check stop-loss condition
     if currentPrice is not None and entryPrice is not None:
       priceDrop = entryPrice * (self.stopLossPercent / 100)
       if currentPrice <= (entryPrice - priceDrop):
-        return super().close()  # Close only if stop-loss triggered
-      return False  # Don't close if stop-loss not triggered
+        # Stop-loss triggered, close the position
+        super().close()
+        closed = True
+      # else: stop-loss not triggered, don't close but still increment
     else:
       # Force close if no price data provided
-      return super().close()
+      super().close()
+      closed = True
+
+    # Always increment index
+    self.incrementIdx()
+    return closed
 
   def incrementIdx(self) -> None:
     """Increment the current index."""
