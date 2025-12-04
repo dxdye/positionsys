@@ -120,6 +120,7 @@ class Data:
     self.start = start
     self.end = end
     self.length = 0
+    self.loaded = False
 
   # self.fetchFromRemote();  could be defaultly executed..
 
@@ -158,9 +159,26 @@ class Data:
       r.raise_for_status()
       self.data = r.json()["bars"]["BTC/USD"]  # defaultly take those values
       self.length = len(self.data)
+      if r.status_code == 200:
+        self.loaded = True
       return r.status_code
     except requests.exceptions.HTTPError as err:
       raise SystemExit(err)
+
+  def getDataAtIndex(self, index: int) -> dict:
+    """
+    Get data point at the specified index.
+    :param index: index of the data point to retrieve
+    :type index: int
+    :return: data point at the specified index
+    :rtype: dict
+    :raises IndexError: if the index is out of range
+    """
+    if not self.loaded:
+      raise "data not loaded yet"
+    if index < 0 or index >= self.length:
+      raise IndexError("Index out of range")
+    return self.data[index]
 
   def getDataLength(self):
     """
