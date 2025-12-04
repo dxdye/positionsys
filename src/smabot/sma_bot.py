@@ -187,18 +187,26 @@ class SMABot(Bot):
     """
     Run the Bot through all data points and execute trades.
 
+    Iterates through all price data and calls actOnTick for each point,
+    which in turn calls decide_and_trade to handle all trading logic.
+
     :return: Tuple of (trade_history, profit_loss)
     :rtype: Tuple[List[Dict], float]
     """
     closing_prices = [self.simulation.data.getDataAtIndex(i)["c"] for i in range(self.simulation.data.getDataLength())]
 
+    # Execute trades on each tick
     for idx in range(self.long_window, len(closing_prices)):
       window_prices = closing_prices[: idx + 1]
       self.actOnTick(window_prices, idx)
 
-    # Evaluate profit/loss
-    profit_loss = self.simulation.reevaluate()
-    return self.trade_history, profit_loss
+    # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
+    profit_loss_list = self.simulation.reevaluate()
+
+    # Sum all profit/loss values to get total P/L
+    total_profit_loss = sum(profit_loss_list) if profit_loss_list else 0.0
+
+    return self.trade_history, total_profit_loss
 
   def reset(self) -> None:
     """Reset the Bot to its initial state."""

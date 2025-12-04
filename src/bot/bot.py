@@ -32,6 +32,7 @@ class Bot(ABC):  # trading bot interface
   def _close_position(self, current_idx: int, current_price: float) -> str:
     """
     Mandatory and private: Close the latest position.
+    Utilizes the position hub to close the latest position
 
     :param current_idx: Current index in the data
     :param current_price: Current price
@@ -44,6 +45,8 @@ class Bot(ABC):  # trading bot interface
     """
     Mandatory and private: Open a new position.
     The percentage of the stop loss is bot-specific.
+    Utilizes the position hub to open a new position
+    The amount has to be determined by the bot.
 
     :param current_idx: Current index in the data
     :param current_price: Current price
@@ -89,7 +92,8 @@ class Bot(ABC):  # trading bot interface
   @abstractmethod
   def reset(self) -> None:
     """
-    Define a reset function for testing or re-running the bot.
+    Somewhat optional: Define a reset function for testing or re-running the bot.
+    Might also be useful to implement UI reset functionality.
     """
 
   # Getter
@@ -119,3 +123,26 @@ class Bot(ABC):  # trading bot interface
     :rtype: List[Position]
     """
     return self.position_hub.getAllPositions()
+
+  def actOnTick(self, priceData: List[float], currentIdx: int) -> None:
+    """
+    Implementation of abstract method from bot interface.
+    Acts on each tick of price data using the SMA crossover strategy.
+
+    This method is called for each new price data point and orchestrates
+    the trading decisions.
+
+    :param priceData: Price data available up to current index (inclusive)
+    :param currentIdx: Current index in the price data
+    :return: None
+    :rtype: None
+    """
+    try:
+      self.decide_and_trade(priceData, currentIdx)
+      # Decision is already handled by decide_and_trade
+      # No need to do anything else here
+    except Exception as e:
+      print(f"Error in actOnTick at index {currentIdx}: {type(e).__name__}: {e}")
+      import traceback
+
+      traceback.print_exc()
