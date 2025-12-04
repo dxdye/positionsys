@@ -1,8 +1,8 @@
+import uuid
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import Type
 
-from src.constants.constants import LIMIT, SMALLEST_INVEST
+from src.constants.constants import LIMIT, SMALLEST_INVEST, OrderType, PositionType
 from src.data import data
 
 
@@ -48,12 +48,17 @@ class Position:
   :rtype: None
   """
 
-  def __set_amount(self, value: float) -> None:
+  def _set_entry_price(self, value: float) -> None:
+    if value <= 0:
+      raise ValueError("entry_price has to be bigger than 0 - otherwise it be odd.")
+    self.entry_price = value
+
+  def _set_amount(self, value: float) -> None:
     if value <= 0:
       raise ValueError("amount has to be bigger than 0")
     self.amount = value
 
-  def __set_timeframe(self, value: data.TimeFrame) -> None:
+  def _set_timeframe(self, value: data.TimeFrame) -> None:
     """
     Sets the timeframe for the position.
     :param value: The timeframe to set.
@@ -66,23 +71,17 @@ class Position:
       raise ValueError("timeFrame has to be of type data.TimeFrame")
     self.timeFrame = value
 
-  def __set_idx(self, value: int) -> None:
-    """
-    Sets the current index for the position.
-    :param value: The current index to set.
-    :type value: int
-    :raises ValueError: if value is less than 0 or not an int
-    :return: None
-    :rtype: None
-    """
-    if value < 0 or not isinstance(value, int):
-      raise ValueError("currentIdx has to be bigger than 0 or not of type int")
-    self.currentIdx = value
-
-  def __init__(self, amount: float, timeFrame: data.TimeFrame, currentIdx: int = 0) -> None:
+  def __init__(
+    self,
+    entry_price: float,
+    amount: float,
+    timeFrame: data.TimeFrame,
+    orderType: OrderType = OrderType.LONG,
+    currentIdx: int = 0,
+  ) -> None:
     """
     Initializes a Position instance.
-    :param amount: The amount invested in the position.
+    :param amount: The amount of (shares, contracts, equity etc.) invested in the position.
     :param timeFrame: The timeframe of the position.
     :param currentIdx: The current index in the data.
     :type amount: float
@@ -92,14 +91,18 @@ class Position:
     :rtype: None
     """
 
-    self.__set_idx(currentIdx)
-    self.__set_amount(amount)
-    self.__set_timeframe(timeFrame)
-    self.createdAt = mapIndexToTime(timeFrame, currentIdx)
+    self._set_amount(amount)
+    self._set_timeframe(timeFrame)
+    self._set_entry_price(entry_price)
+    self.createdAt = mapIndexToTime(
+      timeFrame, currentIdx
+    )  # time when position was created, adjusted to timeframe and index
     self.isOpen = True
     self.closedAt = None
+    self.orderType = orderType
+    self.positionType = PositionType.BASIC
 
-  def close(self) -> bool:  # gets called each tick to check if position should be closed
+  def close(self):  # gets called each tick to check if position should be closed
     """
     Closes the position if it is open.
     :return: bool indicating success of closing the position.
@@ -108,7 +111,6 @@ class Position:
     if self.isOpen is True:
       self.isOpen = False
       self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
-      return True
     else:
       raise RuntimeError("position is already closed")
 
@@ -118,13 +120,8 @@ class Position:
     :return: None
     :rtype: None
     """
-
-    if self.isOpen is True:
-      self.isOpen = False
-
-      self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
-    else:
-      raise ValueError("position is already closed")
+    self.isOpen = False
+    self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
 
   def incrementIdx(self) -> None:
     """
@@ -165,57 +162,59 @@ class StopLossPosition(Position):
   :rtype: None
   """
 
-  def __init__(self, amount: float, timeFrame: data.TimeFrame, stopLossPercent: float, currentIdx: int = 0):
-    super().__init__(amount, timeFrame, currentIdx)
-    if stopLossPercent <= 0 or stopLossPercent >= 100:
+  def _set_stop_loss_percent(self, value: float) -> None:
+    if value <= 0 or value >= 100:
       raise ValueError("stopLossPercent has to be between 0 and 100")
-    self.stopLossPercent = stopLossPercent
+    self.stopLossPercent = value
 
-  def close(self, currentPrice: float = None, entryPrice: float = None) -> bool:
+  def __init__(
+    self,
+    amount: float,
+    timeFrame: data.TimeFrame,
+    stopLossPercent: float,
+    orderType: OrderType = OrderType.LONG,
+  ):
+    super().__init__(amount=amount, timeFrame=timeFrame, orderType=orderType)
+    self._set_stop_loss_percent(stopLossPercent)
+
+  def close(self, currentPrice: float = None):
     """
     Closes the position if the current price falls below the stop-loss threshold.
-
     :param currentPrice: The current price of the asset (optional for force close).
     :param entryPrice: The entry price of the position (optional for force close).
     :return: bool indicating if position was closed
     :rtype: bool
     :raises ValueError: if position is already closed
     """
-    closed = False
+    if currentPrice is None or currentPrice <= 0:
+      raise ValueError("currentPrice has to be provided and bigger than 0 for stop-loss evaluation")
 
     # If prices provided, check stop-loss condition
-    if currentPrice is not None and entryPrice is not None:
-      priceDrop = entryPrice * (self.stopLossPercent / 100)
-      if currentPrice <= (entryPrice - priceDrop):
+    if currentPrice is not None and self.entry_price is not None:
+      priceDrop = self.entry_price * (self.stopLossPercent / 100)
+      if currentPrice <= (self.entry_price - priceDrop) and self.orderType == OrderType.LONG:
         # Stop-loss triggered, close the position
         super().close()
-        closed = True
       # else: stop-loss not triggered, don't close but still increment
-    else:
-      # Force close if no price data provided
-      super().close()
-      closed = True
+      elif currentPrice >= (self.entry_price + priceDrop) and self.orderType == OrderType.SHORT:
+        # Stop-loss triggered for short position, close the position
+        super().close()
 
-    # Always increment index
-    self.incrementIdx()
-    return closed
-
-  def incrementIdx(self) -> None:
-    """Increment the current index."""
-    self.currentIdx += 1
-
-
-class PositionType(Enum):
-  """Enum for different types of positions."""
-
-  BASIC = "basic"
-  STOP_LOSS = "stop_loss"
-  TAKE_PROFIT = "take_profit"
-  # Add more position types as needed
+  def forceClose(self) -> None:
+    """
+    Forces the position to close.
+    :return: None
+    :rtype: None
+    """
+    super().forceClose()
 
 
 class PositionHub:
   """Class representing a hub for managing multiple trading positions.
+  Allows for more than one position at a time
+  however only one position can be open at a time.
+  :param timeFrame: The timeframe for positions in the hub.
+  :type timeFrame: data.TimeFrame
   :param positions: List of positions managed by the hub.
   :type positions: list[Position]
   :return: None"""
@@ -228,7 +227,7 @@ class PositionHub:
     :return: None
     :rtype: None
     """
-    self.positions: list[Position] = []  # stack of positions LIFO
+    self.positions: list[Position] = []
     self.length = 0
     self.timeFrame = timeFrame
 
@@ -250,7 +249,7 @@ class PositionHub:
     }
     return position_mapping.get(position_type, Position)
 
-  def checkConsitency(self):
+  def checkConsistency(self):
     """
     Checks the consistency of the positions in the hub.
     :return: None
@@ -260,13 +259,6 @@ class PositionHub:
       return
     if self.length != len(self.positions):
       raise Exception("length is representative for the positionId and should be updated accurately")
-
-    # Check that only last position can be open
-    if self.length > 1:
-      for i in range(self.length - 1):
-        if self.positions[i].isOpen is True:
-          raise Exception("every position prior last should be closed")
-    return
 
   def closeLatestPosition(self):
     """
@@ -349,7 +341,7 @@ class PositionHub:
 
     # Add position to hub
     self.positions.append(position)
-    self.checkConsitency()
+    self.checkConsistency()
     self.length += 1
 
   def openPositionObject(self, position: Position):
@@ -372,7 +364,7 @@ class PositionHub:
 
     # Add position to hub
     self.positions.append(position)
-    self.checkConsitency()
+    self.checkConsistency()
     self.length += 1
 
   def getAllPositions(self) -> list[Position]:
@@ -395,7 +387,7 @@ class PositionHub:
     return [pos for pos in self.positions if isinstance(pos, position_type)]
 
 
-class PositionSimulation:  # this only evaluates the
+class PositionManagement:  # this only evaluates the
   """
   Class representing a simulation of trading positions.
   :param data: The data used for the simulation.
@@ -408,11 +400,23 @@ class PositionSimulation:  # this only evaluates the
   :rtype: None
   """
 
+  def set_tax_rate(self, tax_rate: float):
+    """
+    Sets the tax rate for the simulation.
+    :param tax_rate: The tax rate to set.
+    :type tax_rate: float
+    :return: None
+    """
+    if tax_rate < 0 or tax_rate > 1:
+      raise ValueError("tax_rate must be between 0 and 1")
+    self.tax_rate = tax_rate
+
   def __init__(
     self,
     data: data.Data,
     balance=200,
     limit=LIMIT,
+    tax_rate=0.0,
   ):
     """Constructor for PositionSimulation class.
     Initializes the PositionSimulation object with the given parameters.
@@ -428,31 +432,36 @@ class PositionSimulation:  # this only evaluates the
     self.positionHub = PositionHub()
     self.balance = balance
     self.limit = limit  # limit of investing assets
-    self.variation = None  # this will include the proft and loss for every tick
-    # -> maybe better to put this into the position?
-    # nope - the idea is to calculate that 'live' in the reevaluation
-    # this can be actually visualized
-
+    self.tax_rate = tax_rate
     self.data = data
 
     # will be iterated on later to calculate loss profit
     return
 
-  def reevaluate(self):
+  def checkConsistency(self):
     """
-    Reevaluate all open positions based on the current data.
+    Loops through all positions and close them if conditions are met
+    :return: None
+    :rtype: None
+    """
+
+  def closeAllRemainingOpenPositions(self):
+    """
+    Closes all remaining open positions, if simulation ends.
+    :return: None
+    :rtype: None
+    """
+    positions = self.positionHub.getAllPositions()
+    for pos in positions:
+      pos.forceClose()
+
+  def evaluate(self):
+    """
+    Evaluate all open positions based on the current data.
     :return: List of profit or loss for each tick.
     :rtype: list[float]
     """
     iterations = self.data.getDataLength()
-
-    # Only validate for real Data objects, skip for test/dummy data
-    if hasattr(self.data, "__class__") and self.data.__class__.__name__ == "Data":
-      try:
-        price_data = [self.data.getDataAtIndex(i) for i in range(iterations)]
-        data.validateInstance(price_data, data.ALPACA_BTC_SCHEMA)
-      except Exception:
-        pass  # Skip validation if it fails
 
     positions = self.positionHub.getAllPositions()
     profitLossPerTick = []
@@ -466,11 +475,16 @@ class PositionSimulation:  # this only evaluates the
         continue
 
       dataPoint = self.data.getDataAtIndex(idx)
-      openPrice = dataPoint.get("o", dataPoint.get("c", 0))
+      entryPrice = dataPoint.get("o", dataPoint.get("c", 0))
       closePrice = dataPoint.get("c", dataPoint.get("o", 0))
-      entryPrice = openPrice
-      currentPrice = closePrice
-      variation = (currentPrice - entryPrice) * pos.amount
-      profitLossPerTick.append(variation)
+      if pos.orderType == OrderType.LONG:
+        profit = (closePrice - entryPrice) * pos.amount
+        profit = profit * (1 - self.tax_rate)  # apply tax
+      elif pos.orderType == OrderType.SHORT:
+        profit = (entryPrice - closePrice) * pos.amount
+        profit = profit * (1 - self.tax_rate)  # apply tax
+      else:
+        profit = 0
+      profitLossPerTick.append(profit)
 
     return profitLossPerTick

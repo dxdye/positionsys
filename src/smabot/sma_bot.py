@@ -3,9 +3,10 @@ Simple Moving Average (SMA) Bot for algorithmic trading.
 Implements SMA crossover strategy for automated buy/sell signals.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, override
 
 from src.bot.bot import Bot
+from src.constants.constants import BotAction
 from src.data.data import Data, TimeFrame
 from src.position.position import PositionHub, PositionSimulation, PositionType
 
@@ -84,7 +85,8 @@ class SMABot(Bot):
       return None
     return sum(prices[-window:]) / window
 
-  def decide_and_trade(self, prices: List[float], current_idx: int) -> str:
+  @override
+  def decide_and_trade(self, prices: List[float], current_idx: int) -> BotAction:
     """
     Decide whether to buy or sell based on SMA crossover strategy.
 
@@ -110,9 +112,10 @@ class SMABot(Bot):
     if self.in_position and short_sma < long_sma:
       return self._close_position(current_idx, current_price)
 
-    return "HOLD"
+    return BotAction.HOLD
 
-  def _open_position(self, current_idx: int, current_price: float) -> str:
+  @override
+  def _open_position(self, current_idx: int, current_price: float) -> BotAction:
     """
     Open a new position with stop loss.
 
@@ -133,24 +136,25 @@ class SMABot(Bot):
       self.last_entry_idx = current_idx
       self.trade_history.append(
         {
-          "type": "BUY",
+          "type": BotAction.BUY,
           "idx": current_idx,
           "price": current_price,
         }
       )
-      return "BUY"
+      return BotAction.BUY
     except Exception as e:
       print(f"Error opening position: {type(e).__name__}: {e}")
-      return "HOLD"
+      return BotAction.HOLD
 
-  def _close_position(self, current_idx: int, current_price: float) -> str:
+  @override
+  def _close_position(self, current_idx: int, current_price: float) -> BotAction:
     """
     Close the latest position.
 
     :param current_idx: Current index in the data
     :param current_price: Current price
-    :return: "SELL" if successful, "HOLD" otherwise
-    :rtype: str
+    :return:  BotAction.SELL if successful,  BotAction.HOLD otherwise
+    :rtype: BotAction
     """
     try:
       self.position_hub.closeLatestPosition()
@@ -162,11 +166,12 @@ class SMABot(Bot):
           "price": current_price,
         }
       )
-      return "SELL"
+      return BotAction.SELL
     except Exception as e:
       print(f"Error closing position: {e}")
-      return "HOLD"
+      return BotAction.HOLD
 
+  @override
   def _should_open_position(self, prices: List[float]) -> bool:
     """
     Determine if a new position should be opened.
@@ -183,6 +188,7 @@ class SMABot(Bot):
 
     return short_sma is not None and long_sma is not None and short_sma > long_sma
 
+  @override
   def run(self) -> Tuple[List[Dict], float]:
     """
     Run the Bot through all data points and execute trades.
@@ -208,6 +214,7 @@ class SMABot(Bot):
 
     return self.trade_history, total_profit_loss
 
+  @override
   def reset(self) -> None:
     """Reset the Bot to its initial state."""
     self.position_hub = PositionHub()

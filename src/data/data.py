@@ -5,24 +5,10 @@ from enum import Enum
 import jsonschema
 import requests
 
-ALPACA_BTC_SCHEMA = {
-  "type": "array",
-  "items": {
-    "type": "object",
-    "properties": {
-      "t": {"type": "string", "format": "date-time"},
-      "o": {"type": "number"},
-      "h": {"type": "number"},
-      "l": {"type": "number"},
-      "c": {"type": "number"},
-      "v": {"type": "number"},
-    },
-    "required": ["t", "o", "h", "l", "c", "v"],
-  },
-}
+import src.constants.constants as consts
 
 
-def validateInstance(data, schema=ALPACA_BTC_SCHEMA):
+def validateInstance(data, schema=consts.DataValidationSchemas.ALPACA_BTC_SCHEMA.value):
   """Validate data against a given JSON schema.
   :param data: data to be validated
   :param schema: JSON schema to validate against
