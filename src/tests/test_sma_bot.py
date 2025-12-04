@@ -5,7 +5,7 @@ import pytest
 
 from src.data.data import TimeFrame
 from src.position.position import Position, StopLossPosition
-from src.sma_bot.sma_bot import SMABot
+from src.smabot.sma_bot import SMABot
 
 
 class DummyData:
@@ -320,16 +320,38 @@ class TestSMABotTradeHistory:
     assert history[0]["type"] == "BUY"
     assert history[1]["type"] == "SELL"
 
-  def test_trade_history_multiple_cycles(self, sma_bot):
-    """Test trade history with multiple buy/sell cycles."""
+  def test_trade_history_multiple_cycles(self):
+    """Test trade history with multiple buy/sell cycles.
+
+    This test creates its own data and bot to ensure consistent test data.
+    """
+    # Create specific price data for multiple cycles
     prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108, 105, 107, 109, 111, 113, 115]
+    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
 
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)  # BUY
-    sma_bot.decide_and_trade(prices[:13], current_idx=12)  # SELL
-    sma_bot.decide_and_trade(prices[:18], current_idx=17)  # BUY
+    bot = SMABot(
+      name="MultiCycleBot",
+      data=data,
+      short_window=3,
+      long_window=5,
+      stop_loss_percent=10.0,
+      amount=1.0,
+    )
 
-    history = sma_bot.get_trade_history()
-    assert len(history) >= 3
+    # Cycle 1: BUY
+    result1 = bot.decide_and_trade(prices[:8], current_idx=7)
+    assert result1 == "BUY"
+
+    # Cycle 1: SELL
+    result2 = bot.decide_and_trade(prices[:13], current_idx=12)
+    assert result2 == "SELL"
+
+    # Cycle 2: BUY
+    result3 = bot.decide_and_trade(prices[:18], current_idx=17)
+    assert result3 == "BUY"
+
+    history = bot.get_trade_history()
+    assert len(history) >= 3, f"Expected >= 3 trades, got {len(history)}"
     assert history[0]["type"] == "BUY"
     assert history[1]["type"] == "SELL"
     assert history[2]["type"] == "BUY"
@@ -392,12 +414,12 @@ class TestSMABotCompleteWorkflow:
     assert len(sma_bot.get_positions()) == 0
 
     # BUY
-    sma_bot.decide_and_trade(prices[:8], currentIdx=7)
+    sma_bot.decide_and_trade(prices[:8], current_idx=7)
     assert sma_bot.in_position is True
     assert len(sma_bot.get_positions()) == 1
 
     # SELL
-    sma_bot.decide_and_trade(prices, currentIdx=12)
+    sma_bot.decide_and_trade(prices, current_idx=12)
     assert sma_bot.in_position is False
 
     # Verify trade history
