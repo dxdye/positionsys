@@ -40,7 +40,6 @@ class TestMapIndexToTime:
 
   def test_map_index_to_time_oneday(self):
     """Test mapping index to time for ONEDAY timeframe."""
-    now = datetime.now()
     time_mapped = mapIndexToTime(TimeFrame.ONEDAY, 0)
 
     # Should be today at 00:00:00
@@ -50,7 +49,6 @@ class TestMapIndexToTime:
 
   def test_map_index_to_time_oneday_with_offset(self):
     """Test mapping with positive index offset."""
-    now = datetime.now()
     time_mapped = mapIndexToTime(TimeFrame.ONEDAY, 1)
     time_mapped_zero = mapIndexToTime(TimeFrame.ONEDAY, 0)
 
@@ -60,7 +58,6 @@ class TestMapIndexToTime:
 
   def test_map_index_to_time_onehour(self):
     """Test mapping index to time for ONEHOUR timeframe."""
-    now = datetime.now()
     time_mapped = mapIndexToTime(TimeFrame.ONEHOUR, 0)
 
     # Should have minute and second set to 0
@@ -134,7 +131,7 @@ class TestPosition:
     position = Position(amount=1.0, timeFrame=TimeFrame.ONEDAY, currentIdx=0)
     position.close()
 
-    with pytest.raises(TypeError):
+    with pytest.raises(RuntimeError):
       position.close()
 
   def test_position_force_close(self):
