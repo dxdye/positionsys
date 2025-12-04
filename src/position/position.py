@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timedelta
 from typing import Type
 
@@ -47,6 +46,10 @@ class Position:
   :return: None
   :rtype: None
   """
+
+  def _check_for_valid_close_price(self, value: float) -> None:
+    if value is not None and value <= 0:
+      raise ValueError("close_price has to be bigger than 0 - otherwise it be odd.")
 
   def _set_entry_price(self, value: float) -> None:
     if value <= 0:
@@ -101,36 +104,32 @@ class Position:
     self.closedAt = None
     self.orderType = orderType
     self.positionType = PositionType.BASIC
+    self.close_price = None
 
-  def close(self):  # gets called each tick to check if position should be closed
+  def close(self, close_price: float):  # gets called each tick to check if position should be closed
     """
     Closes the position if it is open.
     :return: bool indicating success of closing the position.
     :rtype: bool
     """
+    self._check_for_valid_close_price(close_price)
     if self.isOpen is True:
       self.isOpen = False
       self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
+      self.close_price = close_price
     else:
       raise RuntimeError("position is already closed")
 
-  def forceClose(self) -> None:
+  def forceClose(self, close_price: float) -> None:
     """
     Forces the position to close if it is open.
     :return: None
     :rtype: None
     """
+    self._check_for_valid_close_price(close_price)
     self.isOpen = False
     self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
-
-  def incrementIdx(self) -> None:
-    """
-    Increments the current index and updates the createdAt time accordingly.
-    :return: None
-    :rtype: None
-    """
-    self.currentIdx += 1
-    self.createdAt = mapIndexToTime(self.timeFrame, self.currentIdx)
+    self.close_price = close_price
 
   def createDummyPosition(self, begin, close, amount) -> None:
     """
@@ -177,36 +176,36 @@ class StopLossPosition(Position):
     super().__init__(amount=amount, timeFrame=timeFrame, orderType=orderType)
     self._set_stop_loss_percent(stopLossPercent)
 
-  def close(self, currentPrice: float = None):
+  def close(self, close_price: float = None):
     """
     Closes the position if the current price falls below the stop-loss threshold.
-    :param currentPrice: The current price of the asset (optional for force close).
+    :param close_price: The current price of the asset (optional for force close).
     :param entryPrice: The entry price of the position (optional for force close).
     :return: bool indicating if position was closed
     :rtype: bool
     :raises ValueError: if position is already closed
     """
-    if currentPrice is None or currentPrice <= 0:
-      raise ValueError("currentPrice has to be provided and bigger than 0 for stop-loss evaluation")
+    if close_price is None or close_price <= 0:
+      raise ValueError("close_price has to be provided and bigger than 0 for stop-loss evaluation")
 
     # If prices provided, check stop-loss condition
-    if currentPrice is not None and self.entry_price is not None:
+    if close_price is not None and self.entry_price is not None:
       priceDrop = self.entry_price * (self.stopLossPercent / 100)
-      if currentPrice <= (self.entry_price - priceDrop) and self.orderType == OrderType.LONG:
+      if close_price <= (self.entry_price - priceDrop) and self.orderType == OrderType.LONG:
         # Stop-loss triggered, close the position
         super().close()
       # else: stop-loss not triggered, don't close but still increment
-      elif currentPrice >= (self.entry_price + priceDrop) and self.orderType == OrderType.SHORT:
+      elif close_price >= (self.entry_price + priceDrop) and self.orderType == OrderType.SHORT:
         # Stop-loss triggered for short position, close the position
         super().close()
 
-  def forceClose(self) -> None:
+  def forceClose(self, close_price) -> None:
     """
     Forces the position to close.
     :return: None
     :rtype: None
     """
-    super().forceClose()
+    super().forceClose(close_price)
 
 
 class PositionHub:
@@ -260,7 +259,7 @@ class PositionHub:
     if self.length != len(self.positions):
       raise Exception("length is representative for the positionId and should be updated accurately")
 
-  def closeLatestPosition(self):
+  def closeLatestPosition(self, close_price: float):
     """
     Closes the latest position in the hub if it is open.
     :return: None
@@ -274,7 +273,7 @@ class PositionHub:
 
     # Only close if position is open
     if latestPosition.isOpen:
-      latestPosition.close()
+      latestPosition.close(close_price)
 
   def openNewPosition(
     self,
@@ -400,7 +399,7 @@ class PositionManagement:  # this only evaluates the
   :rtype: None
   """
 
-  def set_tax_rate(self, tax_rate: float):
+  def _set_tax_rate(self, tax_rate: float):
     """
     Sets the tax rate for the simulation.
     :param tax_rate: The tax rate to set.
@@ -432,18 +431,23 @@ class PositionManagement:  # this only evaluates the
     self.positionHub = PositionHub()
     self.balance = balance
     self.limit = limit  # limit of investing assets
-    self.tax_rate = tax_rate
+    self._set_tax_rate(tax_rate)
     self.data = data
 
     # will be iterated on later to calculate loss profit
     return
 
-  def checkConsistency(self):
+  def closeAllPositionsOnCondition(self):
     """
     Loops through all positions and close them if conditions are met
     :return: None
     :rtype: None
     """
+    for pos in self.positionHub.getAllPositions():
+      if pos.positionType == PositionType.STOP_LOSS and pos.isOpen:
+        dataPoint = self.data.getDataAtIndex(pos.currentIdx)
+        currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
+        pos.close(currentPrice=currentPrice)
 
   def closeAllRemainingOpenPositions(self):
     """
@@ -461,27 +465,16 @@ class PositionManagement:  # this only evaluates the
     :return: List of profit or loss for each tick.
     :rtype: list[float]
     """
-    iterations = self.data.getDataLength()
 
     positions = self.positionHub.getAllPositions()
     profitLossPerTick = []
 
     for pos in positions:
-      if not pos.isOpen:
-        continue
-
-      idx = pos.currentIdx
-      if idx >= iterations:
-        continue
-
-      dataPoint = self.data.getDataAtIndex(idx)
-      entryPrice = dataPoint.get("o", dataPoint.get("c", 0))
-      closePrice = dataPoint.get("c", dataPoint.get("o", 0))
       if pos.orderType == OrderType.LONG:
-        profit = (closePrice - entryPrice) * pos.amount
+        profit = (pos.close_price - pos.entry_price) * pos.amount
         profit = profit * (1 - self.tax_rate)  # apply tax
       elif pos.orderType == OrderType.SHORT:
-        profit = (entryPrice - closePrice) * pos.amount
+        profit = (pos.entry_price - pos.close_price) * pos.amount
         profit = profit * (1 - self.tax_rate)  # apply tax
       else:
         profit = 0
