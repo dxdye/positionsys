@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
+from src.constants.constants import BotAction
 from src.position.position import Position, PositionHub
 
 
@@ -29,7 +30,7 @@ class Bot(ABC):  # trading bot interface
     self.position_hub: PositionHub = PositionHub()
 
   @abstractmethod
-  def _close_position(self, current_idx: int, current_price: float) -> str:
+  def _close_position(self, current_idx: int, current_price: float) -> BotAction:
     """
     Mandatory and private: Close the latest position.
     Utilizes the position hub to close the latest position
@@ -37,11 +38,11 @@ class Bot(ABC):  # trading bot interface
     :param current_idx: Current index in the data
     :param current_price: Current price
     :return: "SELL" if successful, "HOLD" otherwise
-    :rtype: str
+    :rtype: BotAction
     """
 
   @abstractmethod
-  def _open_position(self, current_idx: int, current_price: float) -> str:
+  def _open_position(self, current_idx: int, current_price: float) -> BotAction:
     """
     Mandatory and private: Open a new position.
     The percentage of the stop loss is bot-specific.
@@ -65,7 +66,7 @@ class Bot(ABC):  # trading bot interface
     """
 
   @abstractmethod
-  def decide_and_trade(self, prices: List[float], current_idx: int) -> str:
+  def decide_and_trade(self, prices: List[float], current_idx: int) -> BotAction:
     """
     Mandatory: Decide whether to open or close a position based on the provided prices
     and current index. Executes the trade if conditions are met.
@@ -80,9 +81,11 @@ class Bot(ABC):  # trading bot interface
   def run(self) -> Tuple[List[Dict], float]:
     """
     Mandatory: Run the Bot through all data points and execute trades.
+    It is the actual SIMULATION
     Utilizes the decide_and_trade method for each tick.
     Also it reevaluates all positions at the end to calculate profit/loss.
     And the returns as Tuple of trade history and profit/loss (float).
+    That means it will evaluate all positions at the end of the data to close them and calculate
     For better understand the run method, look at the SMABot implementation.
 
     :return: Tuple of (trade_history, profit_loss)

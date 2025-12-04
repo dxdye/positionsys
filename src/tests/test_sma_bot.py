@@ -324,6 +324,7 @@ class TestSMABotTradeHistory:
     """Test trade history with multiple buy/sell cycles.
 
     This test creates its own data and bot to ensure consistent test data.
+    Verifies that the bot can execute multiple buy/sell cycles correctly.
     """
     # Create specific price data for multiple cycles
     prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108, 105, 107, 109, 111, 113, 115]
@@ -338,19 +339,46 @@ class TestSMABotTradeHistory:
       amount=1.0,
     )
 
-    # Cycle 1: BUY
+    print(
+      f"\nBot initialized: position_hub={hasattr(bot, 'position_hub')}, trade_history={hasattr(bot, 'trade_history')}"
+    )
+
+    # Cycle 1: BUY at index 7
+    print(f"\nCall 1: decide_and_trade(prices[:8], idx=7)")
     result1 = bot.decide_and_trade(prices[:8], current_idx=7)
-    assert result1 == "BUY"
+    print(f"  Result: {result1}")
+    print(f"  in_position: {bot.in_position}")
+    print(f"  positions: {len(bot.get_positions())}")
+    print(f"  trade_history: {bot.get_trade_history()}")
+    assert result1 == "BUY", f"Expected BUY, got {result1}"
 
-    # Cycle 1: SELL
+    # Cycle 1: SELL at index 12
+    print(f"\nCall 2: decide_and_trade(prices[:13], idx=12)")
     result2 = bot.decide_and_trade(prices[:13], current_idx=12)
-    assert result2 == "SELL"
+    print(f"  Result: {result2}")
+    print(f"  in_position: {bot.in_position}")
+    print(f"  positions: {len(bot.get_positions())}")
+    for i, pos in enumerate(bot.get_positions()):
+      print(f"    Position {i}: isOpen={pos.isOpen}")
+    print(f"  trade_history: {bot.get_trade_history()}")
+    assert result2 == "SELL", f"Expected SELL, got {result2}"
 
-    # Cycle 2: BUY
+    # Cycle 2: BUY at index 17
+    print(f"\nCall 3: decide_and_trade(prices[:18], idx=17)")
     result3 = bot.decide_and_trade(prices[:18], current_idx=17)
-    assert result3 == "BUY"
+    print(f"  Result: {result3}")
+    print(f"  in_position: {bot.in_position}")
+    print(f"  positions: {len(bot.get_positions())}")
+    for i, pos in enumerate(bot.get_positions()):
+      print(f"    Position {i}: isOpen={pos.isOpen}")
+    print(f"  trade_history: {bot.get_trade_history()}")
+    assert result3 == "BUY", f"Expected BUY, got {result3}"
 
     history = bot.get_trade_history()
+    print(f"\nFinal trade history ({len(history)} trades):")
+    for i, trade in enumerate(history):
+      print(f"  {i}: {trade}")
+
     assert len(history) >= 3, f"Expected >= 3 trades, got {len(history)}"
     assert history[0]["type"] == "BUY"
     assert history[1]["type"] == "SELL"
@@ -475,16 +503,16 @@ class TestSMABotCompleteWorkflow:
     )
 
     # Run once
-    history1, profit1 = bot.run()
+    history1, _ = bot.run()
     initial_trades = len(history1)
 
     # Run again without reset - should have double the trades
-    history2, profit2 = bot.run()
+    history2, _ = bot.run()
     assert len(history2) >= initial_trades, "Running twice should accumulate trades"
 
     # Reset and run again
     bot.reset()
-    history3, profit3 = bot.run()
+    history3, _ = bot.run()
     assert len(history3) == initial_trades, "After reset, should have same trades as first run"
 
   def test_bot_run_empty_data(self):
@@ -547,7 +575,7 @@ class TestSMABotCompleteWorkflow:
       amount=1.0,
     )
 
-    trade_history, profit_loss = bot.run()
+    trade_history, _ = bot.run()
 
     # All trade indices should be within the data range
     for trade in trade_history:
@@ -569,7 +597,7 @@ class TestSMABotCompleteWorkflow:
       amount=1.0,
     )
 
-    trade_history, profit_loss = bot.run()
+    _, profit_loss = bot.run()
 
     # The bot ran and calculated profit/loss
     assert isinstance(profit_loss, (int, float))
@@ -591,7 +619,7 @@ class TestSMABotCompleteWorkflow:
       amount=1.0,
     )
 
-    trade_history, profit_loss = bot.run()
+    bot.run()
 
     # After run, all positions should be properly closed
     positions = bot.get_positions()
