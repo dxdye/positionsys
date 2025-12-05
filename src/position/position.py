@@ -386,7 +386,7 @@ class PositionHub:
     return [pos for pos in self.positions if isinstance(pos, position_type)]
 
 
-class PositionManagement:  # this only evaluates the
+class PositionManagement:
   """
   Class representing a simulation of trading positions.
   :param data: The data used for the simulation.
@@ -428,36 +428,44 @@ class PositionManagement:  # this only evaluates the
     :return: None
     :rtype: None
     """
+    self._set_tax_rate(tax_rate)
     self.positionHub = PositionHub()
     self.balance = balance
     self.limit = limit  # limit of investing assets
-    self._set_tax_rate(tax_rate)
     self.data = data
 
-    # will be iterated on later to calculate loss profit
-    return
-
-  def closeAllPositionsOnCondition(self):
+  def closeAllPositionsOnCondition(self, current_idx):
     """
     Loops through all positions and close them if conditions are met
     :return: None
     :rtype: None
     """
-    for pos in self.positionHub.getAllPositions():
-      if pos.positionType == PositionType.STOP_LOSS and pos.isOpen:
-        dataPoint = self.data.getDataAtIndex(pos.currentIdx)
-        currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
-        pos.close(currentPrice=currentPrice)
+    try:
+      for pos in self.positionHub.getAllPositions():
+        if pos.positionType == PositionType.STOP_LOSS and pos.isOpen:
+          dataPoint = self.data.getDataAtIndex(current_idx)
+          currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
+          pos.close(close_price=currentPrice)
+    except Exception as e:
+      print(f"Error while closing remaining positions: {e}")
+      raise e
 
-  def closeAllRemainingOpenPositions(self):
+  def closeAllRemainingOpenPositions(self, current_idx):
     """
-    Closes all remaining open positions, if simulation ends.
+    Used to close all remaining open positions, if simulation ends.
     :return: None
     :rtype: None
     """
-    positions = self.positionHub.getAllPositions()
-    for pos in positions:
-      pos.forceClose()
+    try:
+      positions = self.positionHub.getAllPositions()
+      dataPoint = self.data.getDataAtIndex(current_idx)
+      currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
+
+      for pos in positions:
+        pos.forceClose(currentPrice)
+    except Exception as e:
+      print(f"Error while closing remaining positions: {e}")
+      raise e
 
   def evaluate(self):
     """
