@@ -1,37 +1,8 @@
-from datetime import datetime, timedelta
-from typing import Type
+from abc import abstractmethod
+from typing import Type, override
 
 from src.constants.constants import LIMIT, SMALLEST_INVEST, OrderType, PositionType
 from src.data import data
-
-
-def mapIndexToTime(timeFrame: data.TimeFrame, index: int) -> datetime:
-  """
-  Maps the index of the data to the corresponding time based on the given timeframe.
-  :param timeFrame: The timeframe of the data.
-  :param index: The index in the data.
-  :return: The corresponding datetime for the given index and timeframe.
-  :rtype: datetime
-  """
-  # maps the index of the data to the time
-  # depending on the timeframe
-  # e.g., for daily data, index 0 -> today, index 1 -> yesterday, etc.
-
-  now = datetime.now()
-  if timeFrame == data.TimeFrame.ONEMINUTE:
-    return now.replace(second=0, microsecond=0) - timedelta(minutes=index)
-  elif timeFrame == data.TimeFrame.FIVEMINUTES:
-    return now.replace(second=0, microsecond=0) - timedelta(minutes=5 * index)
-  elif timeFrame == data.TimeFrame.FIFTEENMINUTES:
-    return now.replace(second=0, microsecond=0) - timedelta(minutes=15 * index)
-  elif timeFrame == data.TimeFrame.ONEDAY:
-    return now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=index)
-  elif timeFrame == data.TimeFrame.ONEHOUR:
-    return now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=index)
-  elif timeFrame == data.TimeFrame.FOURHOURS:
-    return now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=4 * index)
-  else:
-    raise TypeError("unsupported timeframe")
 
 
 class Position:
@@ -46,7 +17,7 @@ class Position:
   """
 
   def _check_for_valid_close_price(self, value: float) -> None:
-    if value is not None and value <= 0:
+    if value is None or value <= 0:
       raise ValueError("close_price has to be bigger than 0 - otherwise it be odd.")
 
   def _set_entry_price(self, value: float) -> None:
@@ -97,25 +68,24 @@ class Position:
     self.positionType = PositionType.BASIC
     self.close_price = None
 
-  def close(self, close_price: float):  # gets called each tick to check if position should be closed
+  @abstractmethod
+  def implicit_close(self, close_price: float = None, **kwargs):
     """
-    Closes the position if it is open.
+    Closes on condition (is abstract, to be implemented by subclasses).
     :return: bool indicating success of closing the position.
     :rtype: bool
     """
-    self._check_for_valid_close_price(close_price)
-    if self.isOpen is True:
-      self.isOpen = False
-      self.close_price = close_price
-    else:
-      raise RuntimeError("position is already closed")
 
-  def forceClose(self, close_price: float) -> None:
+  def close(self, close_price: float) -> None:
     """
     Forces the position to close if it is open.
     :return: None
     :rtype: None
     """
+    if close_price is None or close_price <= 0:
+      raise ValueError("close_price has to be provided and bigger than 0")
+    if not self.isOpen:
+      raise RuntimeError("position is already closed")
     self._check_for_valid_close_price(close_price)
     self.isOpen = False
     self.close_price = close_price
@@ -151,7 +121,11 @@ class StopLossPosition(Position):
     super().__init__(entry_price=entry_price, amount=amount, timeFrame=timeFrame, orderType=orderType)
     self._set_stop_loss_percent(stopLossPercent)
 
-  def close(self, close_price: float = None):
+  @override
+  def implicit_close(
+    self,
+    close_price: float = None,
+  ):
     """
     Closes the position if the current price falls below the stop-loss threshold.
     :param close_price: The current price of the asset (optional for force close).
@@ -160,10 +134,7 @@ class StopLossPosition(Position):
     :rtype: bool
     :raises ValueError: if position is already closed
     """
-    if close_price is None or close_price <= 0:
-      raise ValueError("close_price has to be provided and bigger than 0 for stop-loss evaluation")
-
-    # If prices provided, check stop-loss condition
+    self._check_for_valid_close_price(close_price)
     if close_price is not None and self.entry_price is not None:
       priceDrop = self.entry_price * (self.stopLossPercent / 100)
       if close_price <= (self.entry_price - priceDrop) and self.orderType == OrderType.LONG:
@@ -174,13 +145,14 @@ class StopLossPosition(Position):
         # Stop-loss triggered for short position, close the position
         super().close(close_price)
 
-  def forceClose(self, close_price) -> None:
+  def close(self, close_price) -> None:
     """
-    Forces the position to close.
+    Forces the position to close. (in this context)
     :return: None
     :rtype: None
     """
-    super().forceClose(close_price)
+    self._check_for_valid_close_price(close_price)
+    super().close(close_price)
 
 
 class PositionHub:
@@ -414,7 +386,7 @@ class PositionManagement:
         if pos.positionType == PositionType.STOP_LOSS and pos.isOpen:
           dataPoint = self.data.getDataAtIndex(current_idx)
           currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
-          pos.close(close_price=currentPrice)
+          pos.implicit_close(close_price=currentPrice)
     except Exception as e:
       print(f"Error while closing remaining positions: {e}")
       raise e
@@ -431,7 +403,7 @@ class PositionManagement:
       currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
 
       for pos in positions:
-        pos.forceClose(currentPrice)
+        pos.close(currentPrice)
     except Exception as e:
       print(f"Error while closing remaining positions: {e}")
       raise e
