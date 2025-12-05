@@ -38,11 +38,9 @@ class Position:
   """Class representing a trading position.
   :param amount: The amount invested in the position.
   :param timeFrame: The timeframe of the position.
-  :param currentIdx: The current index in the data.
   :type amount: float
   :type timeFrame: data.TimeFrame
-  :type currentIdx: int
-  :raises ValueError: if amount is less than 0, timeFrame is not of type data.TimeFrame, or currentIdx is less than 0 or not an int
+  :raises ValueError: if amount is less than 0 or timeFrame is not of type data.TimeFrame
   :return: None
   :rtype: None
   """
@@ -80,16 +78,13 @@ class Position:
     amount: float,
     timeFrame: data.TimeFrame,
     orderType: OrderType = OrderType.LONG,
-    currentIdx: int = 0,
   ) -> None:
     """
     Initializes a Position instance.
     :param amount: The amount of (shares, contracts, equity etc.) invested in the position.
     :param timeFrame: The timeframe of the position.
-    :param currentIdx: The current index in the data.
     :type amount: float
     :type timeFrame: data.TimeFrame
-    :type currentIdx: int
     :return: None
     :rtype: None
     """
@@ -97,11 +92,7 @@ class Position:
     self._set_amount(amount)
     self._set_timeframe(timeFrame)
     self._set_entry_price(entry_price)
-    self.createdAt = mapIndexToTime(
-      timeFrame, currentIdx
-    )  # time when position was created, adjusted to timeframe and index
     self.isOpen = True
-    self.closedAt = None
     self.orderType = orderType
     self.positionType = PositionType.BASIC
     self.close_price = None
@@ -115,7 +106,6 @@ class Position:
     self._check_for_valid_close_price(close_price)
     if self.isOpen is True:
       self.isOpen = False
-      self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
       self.close_price = close_price
     else:
       raise RuntimeError("position is already closed")
@@ -128,21 +118,7 @@ class Position:
     """
     self._check_for_valid_close_price(close_price)
     self.isOpen = False
-    self.closedAt = mapIndexToTime(self.timeFrame, self.currentIdx)
     self.close_price = close_price
-
-  def createDummyPosition(self, begin, close, amount) -> None:
-    """
-    Creates a dummy position for testing purposes.
-    :param begin: The creation time of the position.
-    :param close: The closing time of the position.
-    :param amount: The amount invested in the position.
-    :return: None
-    :rtype: None
-    """
-    self.createdAt = begin
-    self.closedAt = close
-    self.amount = amount
 
 
 class StopLossPosition(Position):
@@ -151,11 +127,9 @@ class StopLossPosition(Position):
   :param amount: The amount invested in the position.
   :param timeFrame: The timeframe of the position.
   :param stopLossPercent: The stop-loss percentage for the position.
-  :param currentIdx: The current index in the data.
   :type amount: float
   :type timeFrame: data.TimeFrame
   :type stopLossPercent: float
-  :type currentIdx: int
   :raises ValueError: if stopLossPercent is not between 0 and 100
   :return: None
   :rtype: None
@@ -168,12 +142,13 @@ class StopLossPosition(Position):
 
   def __init__(
     self,
+    entry_price: float,
     amount: float,
     timeFrame: data.TimeFrame,
     stopLossPercent: float,
     orderType: OrderType = OrderType.LONG,
   ):
-    super().__init__(amount=amount, timeFrame=timeFrame, orderType=orderType)
+    super().__init__(entry_price=entry_price, amount=amount, timeFrame=timeFrame, orderType=orderType)
     self._set_stop_loss_percent(stopLossPercent)
 
   def close(self, close_price: float = None):
@@ -193,11 +168,11 @@ class StopLossPosition(Position):
       priceDrop = self.entry_price * (self.stopLossPercent / 100)
       if close_price <= (self.entry_price - priceDrop) and self.orderType == OrderType.LONG:
         # Stop-loss triggered, close the position
-        super().close()
+        super().close(close_price)
       # else: stop-loss not triggered, don't close but still increment
       elif close_price >= (self.entry_price + priceDrop) and self.orderType == OrderType.SHORT:
         # Stop-loss triggered for short position, close the position
-        super().close()
+        super().close(close_price)
 
   def forceClose(self, close_price) -> None:
     """
@@ -279,7 +254,6 @@ class PositionHub:
     self,
     amount: float,
     timeFrame: data.TimeFrame = None,
-    currentIdx: int = 0,
     position_type: PositionType = PositionType.BASIC,
     **kwargs,
   ):
@@ -289,13 +263,11 @@ class PositionHub:
 
     :param amount: The amount to invest in the new position.
     :param timeFrame: The timeframe for the position (default: ONEDAY).
-    :param currentIdx: The current index in the data.
     :param position_type: Type of position to create (default: BASIC).
     :param kwargs: Additional parameters for specific position types
                    (e.g., stopLossPercent for STOP_LOSS positions)
     :type amount: float
     :type timeFrame: data.TimeFrame
-    :type currentIdx: int
     :type position_type: PositionType
     :raises Exception: if the amount is less than the smallest investment
     :return: None
@@ -323,19 +295,16 @@ class PositionHub:
         amount=amount,
         timeFrame=timeFrame,
         stopLossPercent=stop_loss_percent,
-        currentIdx=currentIdx,
       )
     elif position_type == PositionType.BASIC:
       position = position_class(
         amount=amount,
         timeFrame=timeFrame,
-        currentIdx=currentIdx,
       )
     else:
       position = position_class(
         amount=amount,
         timeFrame=timeFrame,
-        currentIdx=currentIdx,
       )
 
     # Add position to hub
