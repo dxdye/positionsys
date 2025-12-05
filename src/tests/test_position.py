@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 import pytest
 
 from src.constants.constants import OrderType, PositionType
@@ -9,7 +7,6 @@ from src.position.position import (
   PositionHub,
   PositionManagement,
   StopLossPosition,
-  mapIndexToTime,
 )
 
 
@@ -34,49 +31,6 @@ def dummy_data():
   """Provide dummy data for testing."""
   prices = [100, 102, 101, 103, 105, 104, 110, 112, 115]
   return DummyData(prices, timeFrame=TimeFrame.ONEDAY)
-
-
-class TestMapIndexToTime:
-  """Test the mapIndexToTime function."""
-
-  def test_map_index_to_time_oneday(self):
-    """Test mapping index to time for ONEDAY timeframe."""
-    time_mapped = mapIndexToTime(TimeFrame.ONEDAY, 0)
-
-    # Should be today at 00:00:00
-    assert time_mapped.hour == 0
-    assert time_mapped.minute == 0
-    assert time_mapped.second == 0
-
-  def test_map_index_to_time_oneday_with_offset(self):
-    """Test mapping with positive index offset."""
-    time_mapped = mapIndexToTime(TimeFrame.ONEDAY, 1)
-    time_mapped_zero = mapIndexToTime(TimeFrame.ONEDAY, 0)
-
-    # Difference should be 1 day
-    diff = time_mapped_zero - time_mapped
-    assert diff.days == 1
-
-  def test_map_index_to_time_onehour(self):
-    """Test mapping index to time for ONEHOUR timeframe."""
-    time_mapped = mapIndexToTime(TimeFrame.ONEHOUR, 0)
-
-    # Should have minute and second set to 0
-    assert time_mapped.minute == 0
-    assert time_mapped.second == 0
-
-  def test_map_index_to_time_oneminute(self):
-    """Test mapping index to time for ONEMINUTE timeframe."""
-    time_mapped = mapIndexToTime(TimeFrame.ONEMINUTE, 0)
-
-    # Should have second and microsecond set to 0
-    assert time_mapped.second == 0
-    assert time_mapped.microsecond == 0
-
-  def test_map_index_to_time_unsupported_timeframe(self):
-    """Test that unsupported timeframe raises exception."""
-    with pytest.raises(TypeError):
-      mapIndexToTime("UNSUPPORTED", 0)
 
 
 class TestPosition:
@@ -137,10 +91,10 @@ class TestPosition:
     """Test that closing with invalid price raises exception."""
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
 
-    with pytest.raises(ValueError, match="close_price has to be bigger than 0"):
+    with pytest.raises(ValueError, match="close_price has to be provided and bigger than 0"):
       position.close(close_price=0)
 
-    with pytest.raises(ValueError, match="close_price has to be bigger than 0"):
+    with pytest.raises(ValueError, match="close_price has to be provided and bigger than 0"):
       position.close(close_price=-5.0)
 
   def test_position_close_already_closed(self):
@@ -155,17 +109,17 @@ class TestPosition:
     """Test force closing a position."""
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
 
-    position.forceClose(close_price=105.0)
+    position.close(close_price=105.0)
     assert position.isOpen is False
     assert position.close_price == 105.0
 
   def test_position_force_close_already_closed(self):
     """Test that force close works even if position is already closed."""
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
-    position.close(close_price=105.0)
+    position.implicit_close()
 
     # Force close should work on already closed position
-    position.forceClose(close_price=110.0)
+    position.close(close_price=110.0)
     assert position.isOpen is False
     assert position.close_price == 110.0  # Updated to new close price
 
@@ -208,7 +162,7 @@ class TestStopLossPosition:
 
     current_price = 88.0  # 12% drop, exceeds 10% stop loss
 
-    position.close(current_price)
+    position.implicit_close(current_price)
     assert position.isOpen is False
 
   def test_stoploss_position_close_not_triggered_long(self):
@@ -219,7 +173,7 @@ class TestStopLossPosition:
 
     current_price = 92.0  # 8% drop, below 10% stop loss threshold
 
-    position.close(current_price)
+    position.implicit_close(current_price)
     assert position.isOpen is True
 
   def test_stoploss_position_close_triggered_short(self):
@@ -230,7 +184,7 @@ class TestStopLossPosition:
 
     current_price = 112.0  # 12% increase, exceeds 10% stop loss for SHORT
 
-    position.close(current_price)
+    position.implicit_close(current_price)
     assert position.isOpen is False
 
   def test_stoploss_position_close_not_triggered_short(self):
@@ -241,21 +195,21 @@ class TestStopLossPosition:
 
     current_price = 108.0  # 8% increase, below 10% stop loss threshold
 
-    position.close(current_price)
+    position.implicit_close(current_price)
     assert position.isOpen is True
 
   def test_stoploss_position_close_no_price(self):
     """Test that close raises error when no price is provided."""
     position = StopLossPosition(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY, stopLossPercent=10.0)
 
-    with pytest.raises(ValueError, match="close_price has to be provided and bigger than 0"):
-      position.close(None)
+    with pytest.raises(ValueError, match="close_price has to be bigger than 0 - otherwise it be odd."):
+      position.implicit_close(None)
 
   def test_stoploss_position_force_close(self):
     """Test force closing a stop loss position."""
     position = StopLossPosition(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY, stopLossPercent=10.0)
 
-    position.forceClose(close_price=95.0)
+    position.close(close_price=95.0)
     assert position.isOpen is False
     assert position.close_price == 95.0
 
