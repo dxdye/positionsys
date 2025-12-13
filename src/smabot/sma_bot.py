@@ -3,22 +3,25 @@ Simple Moving Average (SMA) Bot for algorithmic trading.
 Implements SMA crossover strategy for automated buy/sell signals.
 """
 
-from typing import Dict, List, Optional, Tuple, override
+from typing import List, Optional, override
 
 from src.bot.bot import Bot
 from src.constants.constants import BotAction
 from src.data.data import Data, TimeFrame
-from src.position.position import PositionHub, PositionManagement, PositionType
+from src.position.position import PositionHub, PositionType
 
 
 class SMABot(Bot):
   """
-  A trading Bot that uses Simple Moving Average (SMA) crossover strategy.
+  A trading bot that uses Simple Moving Average (SMA) crossover strategy.
 
-  The Bot generates BUY signals when the short-term SMA crosses above the long-term SMA,
+  The bot generates BUY signals when the short-term SMA crosses above the long-term SMA,
   and SELL signals when the short-term SMA crosses below the long-term SMA.
 
-  :param name: Name of theBot
+  This is a local trading bot that simulates a simple moving average strategy.
+  It opens and closes stop loss positions, and only allows one open position at a time.
+
+  :param name: Name of the bot
   :param data: Data object containing price data and timeframe
   :param short_window: Window size for short-term SMA (default: 40)
   :param long_window: Window size for long-term SMA (default: 100)
@@ -61,20 +64,15 @@ class SMABot(Bot):
     if not isinstance(timeFrame, TimeFrame):
       raise ValueError("data.timeFrame must be a TimeFrame enum")
 
-    self.position_management: PositionManagement = PositionManagement(data)
     self.short_window: int = short_window
     self.long_window: int = long_window
     self.stop_loss_percent: float = stop_loss_percent
     self.amount: float = amount
-    self.in_position: bool = False
-    self.last_entry_idx: int = 0
-    self.timeFrame: Optional[TimeFrame] = getattr(data, "timeFrame", None)
-    self.data = data
+    self.timeFrame: TimeFrame = timeFrame
 
   def calculate_sma(self, prices: List[float], window: int) -> Optional[float]:
     """
     Calculate the Simple Moving Average for a given window.
-    This function only exists in the SMABot class to encapsulate SMA logic.
 
     :param prices: List of prices
     :param window: Window size for SMA calculation
@@ -85,31 +83,49 @@ class SMABot(Bot):
       return None
     return sum(prices[-window:]) / window
 
+  def _has_open_position(self) -> bool:
+    """
+    Check if there is currently an open position.
+
+    :return: True if there is an open position, False otherwise
+    :rtype: bool
+    """
+    open_positions = [p for p in self.position_management.position_hub.getAllPositions() if p.isOpen]
+    return len(open_positions) > 0
+
   @override
   def decide_and_trade(self, prices: List[float], current_idx: int) -> BotAction:
     """
     Decide whether to buy or sell based on SMA crossover strategy.
+    This method is called for each tick and implements the trading logic.
+
+    IMPORTANT: Calls closeAllPositionsOnCondition for every tick to check stop-loss conditions.
 
     :param prices: List of closing prices up to current index (inclusive)
     :param current_idx: Current index in the data
-    :return: Trading decision - "BUY", "SELL", or "HOLD"
-    :rtype: str
+    :return: Trading decision - BotAction.BUY, BotAction.SELL, or BotAction.HOLD
+    :rtype: BotAction
     """
+    # CRITICAL: Check stop-loss conditions for all positions on every tick
+    self.position_management.closeAllPositionsOnCondition(current_idx)
+
+    # Calculate SMAs
     short_sma = self.calculate_sma(prices, self.short_window)
     long_sma = self.calculate_sma(prices, self.long_window)
 
     # Not enough data for both SMAs
     if short_sma is None or long_sma is None:
-      return "HOLD"
+      return BotAction.HOLD
 
     current_price = prices[-1]
+    has_open_position = self._has_open_position()
 
-    # Buy signal: short SMA crosses above long SMA and not currently in position
-    if not self.in_position and short_sma > long_sma:
+    # Buy signal: short SMA crosses above long SMA and NO open position
+    if not has_open_position and short_sma > long_sma:
       return self._open_position(current_idx, current_price)
 
-    # Sell signal: short SMA crosses below long SMA and currently in position
-    if self.in_position and short_sma < long_sma:
+    # Sell signal: short SMA crosses below long SMA and we have an open position
+    if has_open_position and short_sma < long_sma:
       return self._close_position(current_idx, current_price)
 
     return BotAction.HOLD
@@ -117,23 +133,27 @@ class SMABot(Bot):
   @override
   def _open_position(self, current_idx: int, current_price: float) -> BotAction:
     """
-    Open a new position with stop loss.
+    Open a new stop-loss position.
+    Only one position is allowed at a time.
 
     :param current_idx: Current index in the data
     :param current_price: Current price
-    :return: "BUY" if successful, "HOLD" otherwise
-    :rtype: str
+    :return: BotAction.BUY if successful, BotAction.HOLD otherwise
+    :rtype: BotAction
     """
     try:
+      # Ensure only one position at a time
+      if self._has_open_position():
+        return BotAction.HOLD
+
       self.position_management.position_hub.openNewPosition(
+        entry_price=current_price,
         amount=self.amount,
         timeFrame=self.timeFrame,
-        currentIdx=current_idx,
         position_type=PositionType.STOP_LOSS,
         stopLossPercent=self.stop_loss_percent,
       )
-      self.in_position = True
-      self.last_entry_idx = current_idx
+
       self.trade_history.append(
         {
           "type": BotAction.BUY,
@@ -149,38 +169,41 @@ class SMABot(Bot):
   @override
   def _close_position(self, current_idx: int, current_price: float) -> BotAction:
     """
-    Close the latest position.
+    Close the latest open position.
 
     :param current_idx: Current index in the data
     :param current_price: Current price
-    :return:  BotAction.SELL if successful,  BotAction.HOLD otherwise
+    :return: BotAction.SELL if successful, BotAction.HOLD otherwise
     :rtype: BotAction
     """
     try:
-      self.position_management.position_hub.closeLatestPosition()
-      self.in_position = False
+      if not self._has_open_position():
+        return BotAction.HOLD
+
+      self.position_management.position_hub.closeLatestPosition(current_price)
+
       self.trade_history.append(
         {
-          "type": "SELL",
+          "type": BotAction.SELL,
           "idx": current_idx,
           "price": current_price,
         }
       )
       return BotAction.SELL
     except Exception as e:
-      print(f"Error closing position: {e}")
+      print(f"Error closing position: {type(e).__name__}: {e}")
       return BotAction.HOLD
 
   @override
   def _should_open_position(self, prices: List[float]) -> bool:
     """
-    Determine if a new position should be opened.
+    Determine if a new position should be opened based on SMA crossover.
 
     :param prices: List of prices
     :return: True if position should be opened, False otherwise
     :rtype: bool
     """
-    if self.in_position or len(prices) < self.long_window:
+    if self._has_open_position() or len(prices) < self.long_window:
       return False
 
     short_sma = self.calculate_sma(prices, self.short_window)
@@ -190,8 +213,6 @@ class SMABot(Bot):
 
   @override
   def reset(self) -> None:
-    """Reset the Bot to its initial state."""
-    self.position_management.position_hub = PositionHub()
-    self.in_position = False
-    self.last_entry_idx = 0
+    """Reset the bot to its initial state."""
+    self.position_management.position_hub = PositionHub(self.timeFrame)
     self.trade_history = []

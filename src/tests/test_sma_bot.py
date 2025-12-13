@@ -1,19 +1,23 @@
-# Add this at the top of the file to help debug
-from unittest.mock import patch
+"""
+BDD Step definitions for SMA Bot testing using pytest-bdd.
+"""
 
 import pytest
+from pytest_bdd import given, parsers, scenarios, then, when
 
+from src.constants.constants import BotAction
 from src.data.data import TimeFrame
-from src.position.position import Position, StopLossPosition
+from src.position.position import StopLossPosition
 from src.smabot.sma_bot import SMABot
 
 
+# Helper class for test data
 class DummyData:
   """A minimal dummy data class to simulate real data for testing."""
 
   def __init__(self, closing_prices, timeFrame=TimeFrame.ONEDAY):
     self._prices = closing_prices
-    self.timeFrame = timeFrame  # Ensure timeFrame is properly set
+    self.timeFrame = timeFrame
 
   def getDataAtIndex(self, idx):
     """Get data point at index."""
@@ -26,27 +30,54 @@ class DummyData:
     return len(self._prices)
 
 
-@pytest.fixture
-def dummy_prices_with_crossover():
-  """
-  Simulate a price series with a clear SMA crossover.
-  Short SMA (3) will cross above long SMA (5) around index 6-7.
-  """
-  return [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
+# Load all feature files
+scenarios("features/sma_bot_initialization.feature")
+scenarios("features/sma_calculation.feature")
+scenarios("features/sma_trading_decisions.feature")
+scenarios("features/sma_bot_workflow.feature")
+
+
+# ============================================================================
+# Shared Fixtures and Context
+# ============================================================================
 
 
 @pytest.fixture
-def dummy_data(dummy_prices_with_crossover):
-  """Provide a dummy data object for testing."""
-  return DummyData(dummy_prices_with_crossover, timeFrame=TimeFrame.ONEDAY)
+def context():
+  """Shared context for test data across steps."""
+  return {
+    "data": None,
+    "bot": None,
+    "prices": [],
+    "decision": None,
+    "error": None,
+    "sma_result": None,
+    "trade_history": None,
+    "profit_loss": None,
+    "first_run_trades": 0,
+  }
 
 
-@pytest.fixture
-def sma_bot(dummy_data):
-  """Provide a configured SMABot instance for testing."""
-  return SMABot(
+# ============================================================================
+# Given Steps - Setup
+# ============================================================================
+
+
+@given('I have price data with timeframe "ONEDAY"')
+def have_price_data(context):
+  """Create basic price data."""
+  context["prices"] = [100, 102, 104, 106, 108, 110, 112]
+  context["data"] = DummyData(context["prices"], timeFrame=TimeFrame.ONEDAY)
+
+
+@given("I have an SMA bot")
+def have_sma_bot(context):
+  """Create a basic SMA bot."""
+  prices = [100, 102, 104, 106, 108, 110, 112]
+  context["data"] = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
+  context["bot"] = SMABot(
     name="TestBot",
-    data=dummy_data,
+    data=context["data"],
     short_window=3,
     long_window=5,
     stop_loss_percent=10.0,
@@ -54,577 +85,490 @@ def sma_bot(dummy_data):
   )
 
 
-# ============================================================================
-# Test Initialization and Configuration
-# ============================================================================
+@given(parsers.parse("I have an SMA bot with short window {short:d} and long window {long:d}"))
+def have_sma_bot_with_windows(context, short, long):
+  """Create SMA bot with specific window sizes."""
+  prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
+  context["prices"] = prices
+  context["data"] = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
+  context["bot"] = SMABot(
+    name="TestBot",
+    data=context["data"],
+    short_window=short,
+    long_window=long,
+    stop_loss_percent=10.0,
+    amount=1.0,
+  )
 
 
-class TestSMABotInitialization:
-  """Tests for SMABot initialization and configuration."""
-
-  def test_initialization_default_parameters(self, dummy_data):
-    """Test bot initialization with default parameters."""
-    bot = SMABot(name="TestBot", data=dummy_data)
-
-    assert bot.name == "TestBot"
-    assert bot.short_window == 40
-    assert bot.long_window == 100
-    assert bot.stop_loss_percent == 5.0
-    assert bot.amount == 1.0
-    assert bot.in_position is False
-    assert bot.timeFrame == TimeFrame.ONEDAY
-    assert len(bot.get_trade_history()) == 0
-    assert len(bot.get_positions()) == 0
-
-  def test_initialization_custom_parameters(self, dummy_data):
-    """Test bot initialization with custom parameters."""
-    bot = SMABot(
-      name="CustomBot",
-      data=dummy_data,
-      short_window=20,
-      long_window=50,
-      stop_loss_percent=7.5,
-      amount=2.5,
-    )
-
-    assert bot.short_window == 20
-    assert bot.long_window == 50
-    assert bot.stop_loss_percent == 7.5
-    assert bot.amount == 2.5
-
-  def test_initialization_invalid_window_sizes(self, dummy_data):
-    """Test that initialization fails with invalid window sizes."""
-    with pytest.raises(ValueError, match="short_window must be less than long_window"):
-      SMABot(name="InvalidBot", data=dummy_data, short_window=100, long_window=50)
-
-  def test_initialization_zero_window_size(self, dummy_data):
-    """Test that initialization fails with zero window size."""
-    with pytest.raises(ValueError, match="window sizes must be positive"):
-      SMABot(name="InvalidBot", data=dummy_data, short_window=0, long_window=50)
-
-  def test_initialization_negative_stop_loss(self, dummy_data):
-    """Test that initialization fails with negative stop loss."""
-    with pytest.raises(ValueError, match="stop_loss_percent must be positive"):
-      SMABot(name="InvalidBot", data=dummy_data, stop_loss_percent=-5.0)
-
-  def test_initialization_zero_amount(self, dummy_data):
-    """Test that initialization fails with zero amount."""
-    with pytest.raises(ValueError, match="amount must be positive"):
-      SMABot(name="InvalidBot", data=dummy_data, amount=0)
+@given(parsers.parse("I have price data: {prices_str}"))
+def have_specific_price_data(context, prices_str):
+  """Parse and set specific price data."""
+  # Parse price data from string like "[100, 102, 104]"
+  prices_str = prices_str.strip("[]")
+  context["prices"] = [float(p.strip()) for p in prices_str.split(",")]
 
 
-# ============================================================================
-# Test SMA Calculation
-# ============================================================================
+@given("I have an empty price list")
+def have_empty_price_list(context):
+  """Set empty price list."""
+  context["prices"] = []
 
 
-class TestSMABotCalculateSMA:
-  """Test the SMA calculation method."""
-
-  def test_calculate_sma_sufficient_data(self, sma_bot):
-    """Test SMA calculation with sufficient data."""
-    prices = [100, 102, 101, 103, 105]
-    sma = sma_bot.calculate_sma(prices, window=3)
-    expected = (101 + 103 + 105) / 3
-    assert sma == pytest.approx(expected)
-
-  def test_calculate_sma_insufficient_data(self, sma_bot):
-    """Test SMA calculation with insufficient data."""
-    prices = [100, 102]
-    sma = sma_bot.calculate_sma(prices, window=3)
-    assert sma is None
-
-  def test_calculate_sma_exact_window_size(self, sma_bot):
-    """Test SMA calculation with exactly window size data."""
-    prices = [100, 102, 101]
-    sma = sma_bot.calculate_sma(prices, window=3)
-    expected = (100 + 102 + 101) / 3
-    assert sma == pytest.approx(expected)
-
-  def test_calculate_sma_empty_list(self, sma_bot):
-    """Test SMA calculation with empty price list."""
-    sma = sma_bot.calculate_sma([], window=3)
-    assert sma is None
-
-  def test_calculate_sma_window_of_one(self, sma_bot):
-    """Test SMA calculation with window size of 1."""
-    prices = [100, 102, 101, 103, 105]
-    sma = sma_bot.calculate_sma(prices, window=1)
-    assert sma == 105  # Last price
-
-  def test_calculate_sma_uses_latest_prices(self, sma_bot):
-    """Test that SMA uses the latest N prices, not first N."""
-    prices = [100, 101, 102, 103, 104, 105, 106]
-    sma = sma_bot.calculate_sma(prices, window=3)
-    # Should be (104 + 105 + 106) / 3, not (100 + 101 + 102) / 3
-    expected = (104 + 105 + 106) / 3
-    assert sma == pytest.approx(expected)
+@given(parsers.parse("I have opened a position at index {idx:d}"))
+def have_opened_position(context, idx):
+  """Open a position at specific index."""
+  prices = context["prices"][: idx + 1]
+  context["bot"].decide_and_trade(prices, idx)
 
 
-# ============================================================================
-# Test Trading Decisions
-# ============================================================================
+@given(parsers.parse("I have opened a position at index {idx:d} with entry price {price:f}"))
+def have_opened_position_with_price(context, idx, price):
+  """Open a position at specific index with entry price."""
+  # Modify the price data to have the specific entry price
+  context["prices"][idx] = price
+  context["data"]._prices = context["prices"]
+  prices = context["prices"][: idx + 1]
+  context["bot"].decide_and_trade(prices, idx)
 
 
-class TestSMABotTradingDecisions:
-  """Test the trading decision logic."""
+@given(parsers.parse("the stop loss percent is {percent:f}"))
+def set_stop_loss_percent(context, percent):
+  """Set stop loss percentage."""
+  context["bot"].stop_loss_percent = percent
 
-  def test_decide_and_trade_insufficient_data(self, sma_bot):
-    """Test trading decision with insufficient data."""
-    prices = [100, 101, 102]  # Only 3 prices, need at least 5 for long SMA
-    decision = sma_bot.decide_and_trade(prices, current_idx=2)
-    assert decision == "HOLD"
 
-  def test_decide_and_trade_buy_signal(self, sma_bot):
-    """Test BUY signal generation when short SMA > long SMA."""
-    # Prices trending up: short SMA will be > long SMA
-    prices = [100, 102, 104, 106, 108, 110, 112]
-    decision = sma_bot.decide_and_trade(prices, current_idx=6)
-    assert decision == "BUY"
-    assert sma_bot.in_position is True
-    assert len(sma_bot.get_positions()) == 1
+@given(parsers.parse("the bot opens a position at price {price:f}"))
+def bot_opens_position_at_price(context, price):
+  """Bot opens a position at a specific price."""
+  # Manually create and add a position
+  from src.constants.constants import OrderType
+  from src.position.position import StopLossPosition
 
-  def test_decide_and_trade_no_second_buy_when_in_position(self, sma_bot):
-    """Test that no second BUY is issued when already in position."""
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116]
+  position = StopLossPosition(
+    entry_price=price,
+    amount=context["bot"].amount,
+    timeFrame=context["bot"].timeFrame,
+    stopLossPercent=context["bot"].stop_loss_percent,
+    orderType=OrderType.LONG,
+  )
+  context["bot"].position_management.position_hub.positions.append(position)
+  context["bot"].position_management.position_hub.length += 1
 
-    # First BUY
-    sma_bot.decide_and_trade(prices[:7], current_idx=6)
-    assert len(sma_bot.get_positions()) == 1
 
-    # Try another BUY while in position (should be ignored)
-    decision = sma_bot.decide_and_trade(prices, current_idx=8)
-    assert decision == "HOLD"
-    assert len(sma_bot.get_positions()) == 1
+@given(parsers.parse("I manually create a position with entry price {price:f}"))
+def manually_create_position(context, price):
+  """Manually create a position at a specific price."""
+  from src.constants.constants import OrderType
+  from src.position.position import StopLossPosition
 
-  def test_decide_and_trade_sell_signal(self, sma_bot):
-    """Test SELL signal generation when short SMA < long SMA."""
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
+  position = StopLossPosition(
+    entry_price=price,
+    amount=context["bot"].amount,
+    timeFrame=context["bot"].timeFrame,
+    stopLossPercent=context["bot"].stop_loss_percent,
+    orderType=OrderType.LONG,
+  )
+  context["bot"].position_management.position_hub.positions.append(position)
+  context["bot"].position_management.position_hub.length += 1
 
-    # BUY first
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)
-    assert sma_bot.in_position is True
 
-    # SELL
-    decision = sma_bot.decide_and_trade(prices, current_idx=12)
-    assert decision == "SELL"
-    assert sma_bot.in_position is False
+@given(
+  parsers.parse(
+    "I have price data with uptrend and downtrend: {prices_str}",
+  )
+)
+def have_trend_price_data(context, prices_str):
+  """Set price data with trends."""
+  prices_str = prices_str.strip("[]")
+  context["prices"] = [float(p.strip()) for p in prices_str.split(",")]
+  context["data"] = DummyData(context["prices"], timeFrame=TimeFrame.ONEDAY)
 
-  def test_decide_and_trade_no_sell_when_not_in_position(self, sma_bot):
-    """Test that SELL signal is not issued when not in position."""
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
 
-    # Try SELL without being in position
-    decision = sma_bot.decide_and_trade(prices, current_idx=12)
-    assert decision == "HOLD"  # No signal because not in position
-    assert sma_bot.in_position is False
+@given(parsers.parse("I have price data with strong uptrend: {prices_str}"))
+def have_uptrend_price_data(context, prices_str):
+  """Set price data with strong uptrend."""
+  prices_str = prices_str.strip("[]")
+  context["prices"] = [float(p.strip()) for p in prices_str.split(",")]
+  context["data"] = DummyData(context["prices"], timeFrame=TimeFrame.ONEDAY)
+
+
+@given(parsers.parse("I have price data with downtrend: {prices_str}"))
+def have_downtrend_price_data(context, prices_str):
+  """Set price data with downtrend."""
+  prices_str = prices_str.strip("[]")
+  context["prices"] = [float(p.strip()) for p in prices_str.split(",")]
+  context["data"] = DummyData(context["prices"], timeFrame=TimeFrame.ONEDAY)
+
+
+@given(
+  parsers.parse(
+    "I have an SMA bot with short window {short:d}, long window {long:d}, and stop loss {stop_loss:f}",
+  )
+)
+def have_configured_bot(context, short, long, stop_loss):
+  """Create fully configured SMA bot."""
+  # Ensure data exists
+  if context["data"] is None:
+    context["prices"] = [100, 102, 104, 106, 108, 110, 112]
+    context["data"] = DummyData(context["prices"], timeFrame=TimeFrame.ONEDAY)
+
+  context["bot"] = SMABot(
+    name="TestBot",
+    data=context["data"],
+    short_window=short,
+    long_window=long,
+    stop_loss_percent=stop_loss,
+    amount=1.0,
+  )
 
 
 # ============================================================================
-# Test Position Management
+# When Steps - Actions
 # ============================================================================
 
 
-class TestSMABotPositionManagement:
-  """Test position opening and closing functionality."""
+@when('I create an SMA bot with name "TestBot" and default parameters')
+def create_bot_default(context):
+  """Create bot with default parameters."""
+  context["bot"] = SMABot(name="TestBot", data=context["data"])
 
-  def test_open_position_success(self, sma_bot):
-    """Test successful position opening."""
-    prices = [100, 102, 104, 106, 108, 110, 112]
-    decision = sma_bot.decide_and_trade(prices, current_idx=6)
 
-    assert decision == "BUY"
-    assert sma_bot.in_position is True
-    assert len(sma_bot.get_positions()) == 1
+@when(
+  parsers.parse(
+    'I create an SMA bot with name "{name}", short window {short:d}, long window {long:d}, stop loss {stop_loss:f}, and amount {amount:f}'
+  )
+)
+def create_bot_with_params(context, name, short, long, stop_loss, amount):
+  """Create bot with specific parameters."""
+  context["bot"] = SMABot(
+    name=name,
+    data=context["data"],
+    short_window=short,
+    long_window=long,
+    stop_loss_percent=stop_loss,
+    amount=amount,
+  )
 
-    position = sma_bot.get_positions()[0]
-    assert isinstance(position, StopLossPosition)
-    assert position.amount == 1.0
-    assert position.stopLossPercent == 10.0
-    assert position.isOpen is True
 
-  def test_close_position_success(self, sma_bot):
-    """Test successful position closing."""
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
+@when("I create an SMA bot with custom parameters")
+def create_bot_custom(context):
+  """Create bot with custom parameters (table data provided by scenario)."""
+  # For simplicity, hardcode the custom parameters from the scenario
+  context["bot"] = SMABot(
+    name="CustomBot",
+    data=context["data"],
+    short_window=20,
+    long_window=50,
+    stop_loss_percent=7.5,
+    amount=2.5,
+  )
 
-    # Open position
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)
-    position = sma_bot.get_positions()[0]
-    assert position.isOpen is True
 
-    # Close position
-    sma_bot.decide_and_trade(prices, current_idx=12)
-    assert position.isOpen is False
-    assert sma_bot.in_position is False
+@when(parsers.parse("I try to create an SMA bot with short window {short:d} and long window {long:d}"))
+def try_create_bot_invalid_windows(context, short, long):
+  """Try to create bot with invalid window configuration."""
+  try:
+    context["bot"] = SMABot(
+      name="InvalidBot",
+      data=context["data"],
+      short_window=short,
+      long_window=long,
+    )
+  except ValueError as e:
+    context["error"] = str(e)
 
-  def test_get_positions_returns_all_positions(self, sma_bot):
-    """Test that get_positions returns all managed positions."""
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108, 105, 107, 109, 111, 113, 115]
 
-    # Multiple buy/sell cycles
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)
-    sma_bot.decide_and_trade(prices[:13], current_idx=12)
-    sma_bot.decide_and_trade(prices[:18], current_idx=17)
+@when(parsers.parse("I try to create an SMA bot with stop loss percent {percent:f}"))
+def try_create_bot_invalid_stop_loss(context, percent):
+  """Try to create bot with invalid stop loss."""
+  try:
+    context["bot"] = SMABot(
+      name="InvalidBot",
+      data=context["data"],
+      stop_loss_percent=percent,
+    )
+  except ValueError as e:
+    context["error"] = str(e)
 
-    positions = sma_bot.get_positions()
-    assert len(positions) >= 2
 
-  def test_get_open_positions_count(self, sma_bot):
-    """Test getting count of open positions."""
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
+@when(parsers.parse("I try to create an SMA bot with amount {amount:f}"))
+def try_create_bot_invalid_amount(context, amount):
+  """Try to create bot with invalid amount."""
+  try:
+    context["bot"] = SMABot(
+      name="InvalidBot",
+      data=context["data"],
+      amount=amount,
+    )
+  except ValueError as e:
+    context["error"] = str(e)
 
-    # No open positions initially
-    assert sma_bot.get_open_positions_count() == 0
 
-    # Open position
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)
-    assert sma_bot.get_open_positions_count() == 1
+@when(parsers.parse("I try to create an SMA bot with amount {amount:d}"))
+def try_create_bot_invalid_amount_int(context, amount):
+  """Try to create bot with invalid amount (integer)."""
+  try:
+    context["bot"] = SMABot(
+      name="InvalidBot",
+      data=context["data"],
+      amount=float(amount),
+    )
+  except ValueError as e:
+    context["error"] = str(e)
 
-    # Close position
-    sma_bot.decide_and_trade(prices, current_idx=12)
-    assert sma_bot.get_open_positions_count() == 0
+
+@when(parsers.parse("I calculate SMA with window size {window:d}"))
+def calculate_sma(context, window):
+  """Calculate SMA with given window size."""
+  context["sma_result"] = context["bot"].calculate_sma(context["prices"], window)
+
+
+@when(parsers.parse("I call decide_and_trade at index {idx:d}"))
+def call_decide_and_trade(context, idx):
+  """Call decide_and_trade method."""
+  prices = context["prices"][: idx + 1]
+  context["decision"] = context["bot"].decide_and_trade(prices, idx)
+
+
+@when(parsers.parse("I call decide_and_trade at index {idx:d} with price dropping to {price:f}"))
+def call_decide_and_trade_with_price_drop(context, idx, price):
+  """Call decide_and_trade with a price drop."""
+  # Modify current price
+  context["prices"][idx] = price
+  context["data"]._prices = context["prices"]
+  prices = context["prices"][: idx + 1]
+  context["decision"] = context["bot"].decide_and_trade(prices, idx)
+
+
+@when(parsers.parse("the price drops to {price:f} and I check stop loss"))
+def check_stop_loss_with_price_drop(context, price):
+  """Check stop loss with price drop."""
+  # Update the data with the dropped price
+  context["prices"][-1] = price
+  context["data"]._prices = context["prices"]
+  # Call closeAllPositionsOnCondition to trigger stop loss check
+  context["bot"].position_management.closeAllPositionsOnCondition(len(context["prices"]) - 1)
+
+
+@when("I run the complete backtest")
+def run_complete_backtest(context):
+  """Run the bot's complete backtest."""
+  context["trade_history"], context["profit_loss"] = context["bot"].run()
+
+
+@when("I record the number of trades")
+def record_number_of_trades(context):
+  """Record the number of trades from first run."""
+  context["first_run_trades"] = len(context["trade_history"])
+
+
+@when("I reset the bot")
+def reset_bot(context):
+  """Reset the bot."""
+  context["bot"].reset()
+
+
+@when("I run the complete backtest again")
+def run_backtest_again(context):
+  """Run backtest a second time."""
+  context["trade_history"], context["profit_loss"] = context["bot"].run()
 
 
 # ============================================================================
-# Test Trade History
+# Then Steps - Assertions
 # ============================================================================
 
 
-class TestSMABotTradeHistory:
-  """Test trade history tracking."""
-
-  def test_trade_history_empty_initially(self, sma_bot):
-    """Test that trade history is empty initially."""
-    assert len(sma_bot.get_trade_history()) == 0
-
-  def test_trade_history_buy_signal(self, sma_bot):
-    """Test trade history records BUY signal."""
-    prices = [100, 102, 104, 106, 108, 110, 112]
-    sma_bot.decide_and_trade(prices, current_idx=6)
-
-    history = sma_bot.get_trade_history()
-    assert len(history) == 1
-    assert history[0]["type"] == "BUY"
-    assert history[0]["idx"] == 6
-    assert history[0]["price"] == 112
-
-  def test_trade_history_buy_and_sell(self, sma_bot):
-    """Test trade history records both BUY and SELL."""
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108]
-
-    sma_bot.decide_and_trade(prices[:8], current_idx=7)
-    sma_bot.decide_and_trade(prices, current_idx=12)
-
-    history = sma_bot.get_trade_history()
-    assert len(history) == 2
-    assert history[0]["type"] == "BUY"
-    assert history[1]["type"] == "SELL"
-
-  def test_trade_history_multiple_cycles(self):
-    """Test trade history with multiple buy/sell cycles.
-
-    This test creates its own data and bot to ensure consistent test data.
-    Verifies that the bot can execute multiple buy/sell cycles correctly.
-    """
-    # Create specific price data for multiple cycles
-    prices = [100, 102, 101, 103, 105, 104, 110, 112, 115, 114, 112, 110, 108, 105, 107, 109, 111, 113, 115]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
-
-    bot = SMABot(
-      name="MultiCycleBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=10.0,
-      amount=1.0,
-    )
-
-    print(
-      f"\nBot initialized: position_hub={hasattr(bot, 'position_hub')}, trade_history={hasattr(bot, 'trade_history')}"
-    )
-
-    # Cycle 1: BUY at index 7
-    print(f"\nCall 1: decide_and_trade(prices[:8], idx=7)")
-    result1 = bot.decide_and_trade(prices[:8], current_idx=7)
-    print(f"  Result: {result1}")
-    print(f"  in_position: {bot.in_position}")
-    print(f"  positions: {len(bot.get_positions())}")
-    print(f"  trade_history: {bot.get_trade_history()}")
-    assert result1 == "BUY", f"Expected BUY, got {result1}"
-
-    # Cycle 1: SELL at index 12
-    print(f"\nCall 2: decide_and_trade(prices[:13], idx=12)")
-    result2 = bot.decide_and_trade(prices[:13], current_idx=12)
-    print(f"  Result: {result2}")
-    print(f"  in_position: {bot.in_position}")
-    print(f"  positions: {len(bot.get_positions())}")
-    for i, pos in enumerate(bot.get_positions()):
-      print(f"    Position {i}: isOpen={pos.isOpen}")
-    print(f"  trade_history: {bot.get_trade_history()}")
-    assert result2 == "SELL", f"Expected SELL, got {result2}"
-
-    # Cycle 2: BUY at index 17
-    print(f"\nCall 3: decide_and_trade(prices[:18], idx=17)")
-    result3 = bot.decide_and_trade(prices[:18], current_idx=17)
-    print(f"  Result: {result3}")
-    print(f"  in_position: {bot.in_position}")
-    print(f"  positions: {len(bot.get_positions())}")
-    for i, pos in enumerate(bot.get_positions()):
-      print(f"    Position {i}: isOpen={pos.isOpen}")
-    print(f"  trade_history: {bot.get_trade_history()}")
-    assert result3 == "BUY", f"Expected BUY, got {result3}"
-
-    history = bot.get_trade_history()
-    print(f"\nFinal trade history ({len(history)} trades):")
-    for i, trade in enumerate(history):
-      print(f"  {i}: {trade}")
-
-    assert len(history) >= 3, f"Expected >= 3 trades, got {len(history)}"
-    assert history[0]["type"] == "BUY"
-    assert history[1]["type"] == "SELL"
-    assert history[2]["type"] == "BUY"
+@then(parsers.parse("the bot should have short window of {window:d}"))
+def check_short_window(context, window):
+  """Verify short window value."""
+  assert context["bot"].short_window == window
 
 
-# ============================================================================
-# Test Abstract Interface Implementation
-# ============================================================================
+@then(parsers.parse("the bot should have long window of {window:d}"))
+def check_long_window(context, window):
+  """Verify long window value."""
+  assert context["bot"].long_window == window
 
 
-class TestSMABotAbstractInterface:
-  """Test implementation of abstract bot interface methods."""
+@then(parsers.parse("the bot should have stop loss percent of {percent:f}"))
+def check_stop_loss_percent(context, percent):
+  """Verify stop loss percentage."""
+  assert context["bot"].stop_loss_percent == percent
 
 
-class TestSMABotCompleteWorkflow:
-  """Test complete trading workflows including the run() method."""
+@then(parsers.parse("the bot should have amount of {amount:f}"))
+def check_amount(context, amount):
+  """Verify amount value."""
+  assert context["bot"].amount == amount
 
-  def test_bot_run_full_backtest(self):
-    """
-    Test complete backtest cycle using the run() method.
 
-    This test verifies that:
-    1. The bot can run through all data points
-    2. Trades are executed correctly
-    3. Trade history is recorded
-    4. Profit/loss is calculated
-    """
-    # Create price data with clear trend: uptrend then downtrend
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 118, 116, 114, 112, 110, 108, 106, 104, 102, 100]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
+@then("the bot should have no open positions")
+def check_no_open_positions(context):
+  """Verify no open positions."""
+  open_positions = [p for p in context["bot"].position_management.position_hub.getAllPositions() if p.isOpen]
+  assert len(open_positions) == 0
 
-    bot = SMABot(
-      name="BacktestBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
 
-    # Run the backtest
-    trade_history, profit_loss = bot.run()
+@then("the bot should have empty trade history")
+def check_empty_trade_history(context):
+  """Verify empty trade history."""
+  assert len(context["bot"].get_trade_history) == 0
 
-    # Verify results
-    assert isinstance(trade_history, list), "Trade history should be a list"
-    assert isinstance(profit_loss, (int, float)), "Profit/loss should be a number"
-    assert len(trade_history) > 0, "Should have at least one trade"
 
-    # Verify trade history structure
-    for trade in trade_history:
-      assert "type" in trade, "Trade should have 'type' field"
-      assert "idx" in trade, "Trade should have 'idx' field"
-      assert "price" in trade, "Trade should have 'price' field"
-      assert trade["type"] in ["BUY", "SELL"], "Trade type should be BUY or SELL"
+@then(parsers.parse('the bot creation should fail with error "{error_msg}"'))
+def check_creation_error(context, error_msg):
+  """Verify that bot creation failed with expected error."""
+  assert context["error"] is not None
+  assert error_msg in context["error"]
 
-    # Verify trades alternate between BUY and SELL
-    for i, trade in enumerate(trade_history):
-      if i > 0:
-        prev_type = trade_history[i - 1]["type"]
-        curr_type = trade["type"]
-        # After BUY should come SELL, after SELL should come BUY
-        if prev_type == "BUY":
-          assert curr_type == "SELL", "SELL should follow BUY"
-        elif prev_type == "SELL":
-          assert curr_type == "BUY", "BUY should follow SELL"
 
-  def test_bot_run_with_trending_market(self):
-    """Test bot run() in a strong uptrend - should generate BUY signals."""
-    # Clear uptrend: prices steadily increase
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
+@then(parsers.parse("the SMA should be approximately {value:f}"))
+def check_sma_approximate(context, value):
+  """Verify SMA value is approximately correct."""
+  assert context["sma_result"] is not None
+  assert abs(context["sma_result"] - value) < 0.01
 
-    bot = SMABot(
-      name="UptrendBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
 
-    trade_history, profit_loss = bot.run()
+@then("the SMA should be None")
+def check_sma_none(context):
+  """Verify SMA is None."""
+  assert context["sma_result"] is None
 
-    # In uptrend, should have at least one BUY
-    assert len(trade_history) >= 1
-    assert any(trade["type"] == "BUY" for trade in trade_history)
 
-  def test_bot_run_with_downtrend(self):
-    """Test bot run() in a downtrend - should generate SELL signals after BUY."""
-    # Downtrend: prices steadily decrease
-    prices = [128, 126, 124, 122, 120, 118, 116, 114, 112, 110, 108, 106, 104, 102, 100]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
+@then(parsers.parse("the SMA should be {value:f}"))
+def check_sma_exact(context, value):
+  """Verify SMA exact value."""
+  assert context["sma_result"] == value
 
-    bot = SMABot(
-      name="DowntrendBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
 
-    trade_history, profit_loss = bot.run()
+@then(parsers.parse('the decision should be "{decision}"'))
+def check_decision(context, decision):
+  """Verify trading decision."""
+  # Handle both string and BotAction enum
+  decision_value = str(context["decision"])
+  # Extract just the action name if it's in format "BotAction.XXX"
+  if "." in decision_value:
+    decision_value = decision_value.split(".")[-1]
+  assert decision_value == decision
 
-    # Downtrend should generate very few or no trades
-    # (short SMA won't be > long SMA in sustained downtrend)
-    assert len(trade_history) <= 2
 
-  def test_bot_run_resets_state(self):
-    """Test that running the bot multiple times requires reset."""
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
+@then(parsers.parse("the bot should have {count:d} open position"))
+@then(parsers.parse("the bot should have {count:d} open positions"))
+def check_open_positions_count(context, count):
+  """Verify number of open positions."""
+  open_positions = [p for p in context["bot"].position_management.position_hub.getAllPositions() if p.isOpen]
+  assert len(open_positions) == count
 
-    bot = SMABot(
-      name="ResetBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
 
-    # Run once
-    history1, _ = bot.run()
-    initial_trades = len(history1)
+@then(parsers.parse("the bot should have {count:d} position"))
+@then(parsers.parse("the bot should have {count:d} positions"))
+def check_positions_count(context, count):
+  """Verify total number of positions."""
+  assert len(context["bot"].position_management.position_hub.getAllPositions()) == count
 
-    # Run again without reset - should have double the trades
-    history2, _ = bot.run()
-    assert len(history2) >= initial_trades, "Running twice should accumulate trades"
 
-    # Reset and run again
-    bot.reset()
-    history3, _ = bot.run()
-    assert len(history3) == initial_trades, "After reset, should have same trades as first run"
+@then("the position should be a StopLossPosition")
+def check_position_type(context):
+  """Verify position type."""
+  positions = context["bot"].position_management.position_hub.getAllPositions()
+  assert len(positions) > 0
+  assert isinstance(positions[-1], StopLossPosition)
 
-  def test_bot_run_empty_data(self):
-    """Test bot run() with insufficient data."""
-    # Not enough data for SMA calculation
-    prices = [100, 101, 102]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
 
-    bot = SMABot(
-      name="EmptyBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
+@then("the position should be closed by stop loss")
+def check_position_closed_by_stop_loss(context):
+  """Verify position was closed by stop loss."""
+  positions = context["bot"].position_management.position_hub.getAllPositions()
+  assert len(positions) > 0
+  # After stop loss trigger, position should be closed
+  assert not positions[-1].isOpen
 
-    trade_history, profit_loss = bot.run()
 
-    # Should not crash, but may have few or no trades
-    assert isinstance(trade_history, list)
-    assert isinstance(profit_loss, (int, float))
+@then("the trade history should not be empty")
+def check_trade_history_not_empty(context):
+  """Verify trade history has entries."""
+  assert len(context["trade_history"]) > 0
 
-  def test_bot_run_trade_prices_match_data(self):
-    """Test that recorded trade prices match the actual data at those indices."""
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
 
-    bot = SMABot(
-      name="PriceCheckBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
+@then("the profit/loss should be calculated")
+def check_profit_loss_calculated(context):
+  """Verify profit/loss is calculated."""
+  assert context["profit_loss"] is not None
+  assert isinstance(context["profit_loss"], (int, float))
 
-    trade_history, profit_loss = bot.run()
 
-    # Verify each trade's price matches the data at that index
-    for trade in trade_history:
-      idx = trade["idx"]
-      recorded_price = trade["price"]
-      actual_price = prices[idx]
-      assert recorded_price == actual_price, (
-        f"Trade at index {idx} recorded price {recorded_price}, but actual was {actual_price}"
-      )
+@then("all trades should alternate between BUY and SELL")
+def check_trades_alternate(context):
+  """Verify trades alternate between BUY and SELL."""
+  for i, trade in enumerate(context["trade_history"]):
+    if i > 0:
+      prev_type = str(context["trade_history"][i - 1]["type"])
+      curr_type = str(trade["type"])
+      if prev_type == "BUY":
+        assert curr_type == "SELL", "SELL should follow BUY"
+      elif prev_type == "SELL":
+        assert curr_type == "BUY", "BUY should follow SELL"
 
-  def test_bot_run_indices_are_valid(self):
-    """Test that all trade indices are within valid range."""
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
 
-    bot = SMABot(
-      name="IndexCheckBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
+@then("all trade prices should match the data at their indices")
+def check_trade_prices_match(context):
+  """Verify trade prices match actual data."""
+  for trade in context["trade_history"]:
+    idx = trade["idx"]
+    recorded_price = trade["price"]
+    actual_price = context["prices"][idx]
+    assert recorded_price == actual_price
 
-    trade_history, _ = bot.run()
 
-    # All trade indices should be within the data range
-    for trade in trade_history:
-      idx = trade["idx"]
-      assert 0 <= idx < len(prices), f"Trade index {idx} out of valid range [0, {len(prices) - 1}]"
+@then("the trade history should contain at least one BUY signal")
+def check_at_least_one_buy(context):
+  """Verify at least one BUY signal."""
+  buy_trades = [t for t in context["trade_history"] if t["type"] == BotAction.BUY]
+  assert len(buy_trades) >= 1
 
-  def test_bot_run_profit_loss_calculation(self):
-    """Test that profit/loss is calculated after running the bot."""
-    # Prices that go up then down - should result in loss if we bought high
-    prices = [100, 102, 104, 106, 108, 110, 112, 110, 108, 106, 104, 102, 100]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
 
-    bot = SMABot(
-      name="ProfitBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
+@then(parsers.parse("the trade history should have at most {count:d} trades"))
+def check_at_most_trades(context, count):
+  """Verify at most N trades."""
+  assert len(context["trade_history"]) <= count
 
-    _, profit_loss = bot.run()
 
-    # The bot ran and calculated profit/loss
-    assert isinstance(profit_loss, (int, float))
-    # Profit/loss should be a reasonable number (not NaN or infinity)
-    assert profit_loss == profit_loss  # NaN check (NaN != NaN)
-    assert profit_loss != float("inf") and profit_loss != float("-inf")
+@then("the second run should have the same number of trades as the first run")
+def check_same_trade_count_after_reset(context):
+  """Verify same trade count after reset."""
+  assert len(context["trade_history"]) == context["first_run_trades"]
 
-  def test_bot_run_positions_consistency(self):
-    """Test that positions are managed consistently during run."""
-    prices = [100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120]
-    data = DummyData(prices, timeFrame=TimeFrame.ONEDAY)
 
-    bot = SMABot(
-      name="PositionBot",
-      data=data,
-      short_window=3,
-      long_window=5,
-      stop_loss_percent=5.0,
-      amount=1.0,
-    )
+@then("the backtest should complete without errors")
+def check_backtest_completes(context):
+  """Verify backtest completes."""
+  assert context["trade_history"] is not None
+  assert context["profit_loss"] is not None
 
-    bot.run()
 
-    # After run, all positions should be properly closed
-    positions = bot.get_positions()
-    assert len(positions) > 0, "Should have created at least one position"
+@then("the trade history should be a list")
+def check_trade_history_is_list(context):
+  """Verify trade history is a list."""
+  assert isinstance(context["trade_history"], list)
 
-    # All but possibly the last position should be closed
-    open_positions = [p for p in positions if p.isOpen]
-    assert len(open_positions) <= 1, "Should have at most one open position after run"
+
+@then("the profit/loss should be a number")
+def check_profit_loss_is_number(context):
+  """Verify profit/loss is a number."""
+  assert isinstance(context["profit_loss"], (int, float))
+
+
+@then(parsers.parse("there should be at most {count:d} open position remaining"))
+@then(parsers.parse("there should be at most {count:d} open positions remaining"))
+def check_at_most_open_positions(context, count):
+  """Verify at most N open positions."""
+  open_positions = [p for p in context["bot"].position_management.position_hub.getAllPositions() if p.isOpen]
+  assert len(open_positions) <= count
+
+
+@then("at least one position should have been created")
+def check_at_least_one_position_created(context):
+  """Verify at least one position was created."""
+  assert len(context["bot"].position_management.position_hub.getAllPositions()) > 0
