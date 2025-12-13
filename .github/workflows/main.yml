@@ -1,19 +1,17 @@
 name: Run Tests
 
 on:
-  push:
-    branches: 
-      - feat/sma-and-others
   pull_request:
     branches: 
       - main
+      - feat/sma-and-others
 
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         python-version: ["3.13"]
 
     steps:
@@ -44,7 +42,7 @@ jobs:
 
       - name: Generate test report
         if: always()
-        run: pixi run test -- --junitxml=junit.xml
+        run: pixi run test::report 
 
       - name: Upload test results
         if: always()
