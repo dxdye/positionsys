@@ -6,7 +6,6 @@ build
 _build
 docs
 
-
 # pixi environments
 !.pixi/config.toml
 .pixi/*
