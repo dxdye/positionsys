@@ -188,6 +188,17 @@ class Data:
     """
     return self.length
 
+  def getClosingPrices(self) -> list[float]:
+    """
+    Get all closing prices from the loaded data.
+    :return: list of closing prices
+    :rtype: list[float]
+    :raises: RuntimeError if data not loaded yet
+    """
+    if not self.loaded:
+      raise RuntimeError("data not loaded yet")
+    return [self.data[i]["c"] for i in range(self.length)]
+
   def getFromFile(self):
     """
     Fetch data from a local file.
