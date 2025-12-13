@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
 from src.constants.constants import BotAction
-from src.position.position import Position, PositionHub
+from src.data.data import Data
+from src.position.position import Position, PositionManagement
 
 
 class Bot(ABC):  # trading bot interface
@@ -11,7 +12,7 @@ class Bot(ABC):  # trading bot interface
   Provides methods to open and close positions, and to act on each tick of price data.
   """
 
-  def __init__(self, name: str) -> None:
+  def __init__(self, name: str, data: Data) -> None:
     """
     Initialize the bot with a name.
 
@@ -26,8 +27,7 @@ class Bot(ABC):  # trading bot interface
 
     self.name = name
     self.trade_history: List[Dict] = []
-
-    self.position_hub: PositionHub = PositionHub()
+    self.position_management = PositionManagement(data)
 
   @abstractmethod
   def _close_position(self, current_idx: int, current_price: float) -> BotAction:
@@ -77,7 +77,6 @@ class Bot(ABC):  # trading bot interface
     :rtype: str
     """
 
-  @abstractmethod
   def run(self) -> Tuple[List[Dict], float]:
     """
     Mandatory: Run the Bot through all data points and execute trades.
@@ -91,6 +90,22 @@ class Bot(ABC):  # trading bot interface
     :return: Tuple of (trade_history, profit_loss)
     :rtype: Tuple[List[Dict], float]
     """
+    closing_prices = [
+      self.position_management.data.getDataAtIndex(i)["c"] for i in range(self.position_management.data.getDataLength())
+    ]
+
+    # Execute trades on each tick
+    for idx in range(self.long_window, len(closing_prices)):
+      window_prices = closing_prices[: idx + 1]
+      self.actOnTick(window_prices, idx)
+
+    # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
+    profit_loss_list = self.position_management.evaluate()
+
+    # Sum all profit/loss values to get total P/L
+    total_profit_loss = sum(profit_loss_list) if profit_loss_list else 0.0
+
+    return self.trade_history, total_profit_loss
 
   @abstractmethod
   def reset(self) -> None:
@@ -100,6 +115,7 @@ class Bot(ABC):  # trading bot interface
     """
 
   # Getter
+  @property
   def get_trade_history(self) -> List[Dict]:
     """
     Get the Bot's trade history.
@@ -109,6 +125,7 @@ class Bot(ABC):  # trading bot interface
     """
     return self.trade_history
 
+  @property
   def get_open_positions_count(self) -> int:
     """
     Get the number of currently open positions.
@@ -116,8 +133,9 @@ class Bot(ABC):  # trading bot interface
     :return: Number of open positions
     :rtype: int
     """
-    return len([p for p in self.get_positions() if p.isOpen])
+    return len([p for p in self.get_positions if p.isOpen])
 
+  @property
   def get_positions(self) -> List[Position]:
     """
     Get all positions managed by the Bot.
