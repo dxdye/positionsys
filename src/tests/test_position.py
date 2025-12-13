@@ -253,7 +253,7 @@ class TestPositionHub:
     hub = PositionHub()
 
     with pytest.raises(Exception, match="amount should be bigger than smallest possible invest"):
-      hub.openNewPosition(0.001)
+      hub.openNewPosition(amount=0.001, entry_price=100.0)
 
   def test_position_hub_open_position_object(self):
     """Test opening a position using a position object."""
@@ -352,8 +352,8 @@ class TestPositionManagement:
 
     assert management.balance == 1000.0
     assert management.limit == 10000.0
-    assert management.positionHub is not None
-    assert isinstance(management.positionHub, PositionHub)
+    assert management.position_hub is not None
+    assert isinstance(management.position_hub, PositionHub)
     assert management.tax_rate == 0.0
 
   def test_position_management_default_balance(self, dummy_data):
@@ -392,8 +392,8 @@ class TestPositionManagement:
     # Create and close a position
     position = Position(entry_price=100.0, amount=2.0, timeFrame=TimeFrame.ONEDAY, orderType=OrderType.LONG)
     position.close(close_price=110.0)
-    management.positionHub.positions.append(position)
-    management.positionHub.length = 1
+    management.position_hub.positions.append(position)
+    management.position_hub.length = 1
 
     result = management.evaluate()
 
@@ -409,8 +409,8 @@ class TestPositionManagement:
     # Create and close a short position
     position = Position(entry_price=100.0, amount=2.0, timeFrame=TimeFrame.ONEDAY, orderType=OrderType.SHORT)
     position.close(close_price=90.0)
-    management.positionHub.positions.append(position)
-    management.positionHub.length = 1
+    management.position_hub.positions.append(position)
+    management.position_hub.length = 1
 
     result = management.evaluate()
 
@@ -426,8 +426,8 @@ class TestPositionManagement:
     # Create and close a position
     position = Position(entry_price=100.0, amount=2.0, timeFrame=TimeFrame.ONEDAY)
     position.close(close_price=110.0)
-    management.positionHub.positions.append(position)
-    management.positionHub.length = 1
+    management.position_hub.positions.append(position)
+    management.position_hub.length = 1
 
     result = management.evaluate()
 
@@ -443,9 +443,9 @@ class TestPositionManagement:
     # Create open positions
     pos1 = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
     pos2 = Position(entry_price=105.0, amount=2.0, timeFrame=TimeFrame.ONEDAY)
-    management.positionHub.positions.append(pos1)
-    management.positionHub.positions.append(pos2)
-    management.positionHub.length = 2
+    management.position_hub.positions.append(pos1)
+    management.position_hub.positions.append(pos2)
+    management.position_hub.length = 2
 
     # Close all positions at index 0
     management.closeAllRemainingOpenPositions(current_idx=0)
@@ -462,8 +462,8 @@ class TestPositionManagement:
 
     # Create a stop loss position
     pos = StopLossPosition(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY, stopLossPercent=5.0)
-    management.positionHub.positions.append(pos)
-    management.positionHub.length = 1
+    management.position_hub.positions.append(pos)
+    management.position_hub.length = 1
 
     # Current price at index 0 is 100, should not trigger stop loss
     management.closeAllPositionsOnCondition(current_idx=0)
@@ -518,8 +518,8 @@ class TestPositionIntegration:
     # Add a position
     pos = Position(entry_price=100.0, amount=2.0, timeFrame=TimeFrame.ONEDAY)
     pos.close(close_price=110.0)
-    management.positionHub.positions.append(pos)
-    management.positionHub.length = 1
+    management.position_hub.positions.append(pos)
+    management.position_hub.length = 1
 
     # Evaluate
     results = management.evaluate()
