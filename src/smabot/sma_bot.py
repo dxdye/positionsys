@@ -3,7 +3,7 @@ Simple Moving Average (SMA) Bot for algorithmic trading.
 Implements SMA crossover strategy for automated buy/sell signals.
 """
 
-from typing import List, Optional, override
+from typing import Dict, List, Optional, Tuple, override
 
 from src.bot.bot import Bot
 from src.constants.constants import BotAction
@@ -216,3 +216,36 @@ class SMABot(Bot):
     """Reset the bot to its initial state."""
     self.position_management.position_hub = PositionHub(self.timeFrame)
     self.trade_history = []
+
+  @override
+  def run(self) -> Tuple[List[Dict], float]:
+    """
+    Run the SMA Bot through all data points starting from long_window index.
+
+    Overrides the base Bot.run() to start from long_window index since
+    we need at least long_window data points to calculate the long SMA.
+
+    :return: Tuple of (trade_history, profit_loss)
+    :rtype: Tuple[List[Dict], float]
+    """
+    # Get data length once to avoid repeated calls
+    data_length = self.position_management.data.getDataLength()
+
+    # Start from long_window since we need that many points for SMA calculation
+    for idx in range(self.long_window, data_length):
+      # Build price window up to current index
+      window_prices = [self.position_management.data.getDataAtIndex(i)["c"] for i in range(idx + 1)]
+      self.actOnTick(window_prices, idx)
+
+    # Close all remaining open positions at the end
+    last_idx = data_length - 1
+    if last_idx >= 0:
+      self.position_management.closeAllRemainingOpenPositions(last_idx)
+
+    # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
+    profit_loss_list = self.position_management.evaluate()
+
+    # Sum all profit/loss values to get total P/L
+    total_profit_loss = sum(profit_loss_list) if profit_loss_list else 0.0
+
+    return self.trade_history, total_profit_loss
