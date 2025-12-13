@@ -5,6 +5,7 @@ nohup.out
 build
 _build
 docs
+junit.xml
 
 # pixi environments
 !.pixi/config.toml

@@ -36,6 +36,7 @@ test = { cmd = "pytest -s", cwd = "src/tests/" }
 "test::data" = { cmd = "pytest -s test_data.py", cwd = "src/tests/" }
 "test::sma_bot" = { cmd = "pytest -s test_sma_bot.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
 "test::position" = { cmd = "pytest -s test_position.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
+"test::report" = { cmd = "pytest -s src/tests/ --junitxml=junit.xml" }
 
 [tasks.docs]
 cmd = "pdoc src !src.tests"
