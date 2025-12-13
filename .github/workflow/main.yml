@@ -2,9 +2,13 @@ name: Run Tests
 
 on:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - feat/sma-and-others
   pull_request:
-    branches: [main]
+    branches: 
+      - main
+      - feat/sma-and-others
 
 jobs:
   test:

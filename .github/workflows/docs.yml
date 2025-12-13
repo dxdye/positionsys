@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main  # Trigger on pushes to main branch
+      - feat/sma-and-others  # Trigger on pushes to feature branch
   workflow_dispatch:  # Allow manual triggering
 
 # Sets permissions for GitHub Pages deployment
