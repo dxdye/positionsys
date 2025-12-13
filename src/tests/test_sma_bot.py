@@ -3,7 +3,7 @@ BDD Step definitions for SMA Bot testing using pytest-bdd.
 """
 
 import pytest
-from pytest_bdd import given, parsers, scenarios, then, when
+from pytest_bdd import given, parsers, then, when
 
 from src.constants.constants import BotAction
 from src.data.data import TimeFrame
@@ -31,10 +31,18 @@ class DummyData:
 
 
 # Load all feature files
-scenarios("features/sma_bot_initialization.feature")
-scenarios("features/sma_calculation.feature")
-scenarios("features/sma_trading_decisions.feature")
-scenarios("features/sma_bot_workflow.feature")
+# Wrapped in try-except to handle cases where pytest config is not available (e.g., pdoc import)
+try:
+  from pytest_bdd import scenarios
+
+  scenarios("features/sma_bot_initialization.feature")
+  scenarios("features/sma_calculation.feature")
+  scenarios("features/sma_trading_decisions.feature")
+  scenarios("features/sma_bot_workflow.feature")
+except (IndexError, RuntimeError):
+  # IndexError: occurs when pytest CONFIG_STACK is empty (e.g., during pdoc import)
+  # RuntimeError: other potential issues during scenario loading
+  pass
 
 
 # ============================================================================

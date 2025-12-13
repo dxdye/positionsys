@@ -96,7 +96,7 @@ class Bot(ABC):  # trading bot interface
     # Execute trades on each tick from start to end
     for idx in range(data_length):
       # Build price window up to current index
-      window_prices = [self.position_management.data.getDataAtIndex(i)["c"] for i in range(idx + 1)]
+      window_prices = self.position_management.data.getClosingPrices()
       self.actOnTick(window_prices, idx)
 
     # Close all remaining open positions at the end
