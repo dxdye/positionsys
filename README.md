@@ -32,8 +32,11 @@ pixi run docs
 
 to save it locally in a folder `./docs`: 
 ```
-pixi run docs:stored
+pixi run docs:saved
 ```
+
+the docs should be hosted via GitHub Pages on: 
+https://dxdye.github.io/positionsys/
 
 
 
