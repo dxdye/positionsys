@@ -15,6 +15,7 @@ permissions:
   pages: write
   id-token: write
 
+
 # Allow one concurrent deployment
 concurrency:
   group: "pages"
@@ -37,6 +38,10 @@ jobs:
       - name: Generate documentation
         run: |
           pixi run docs:saved
+
+      - name: Disable Jekyll processing
+        run: |
+          touch docs/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
