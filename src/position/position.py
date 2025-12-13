@@ -225,20 +225,23 @@ class PositionHub:
   def openNewPosition(
     self,
     amount: float,
+    entry_price: float,
     timeFrame: data.TimeFrame = None,
     position_type: PositionType = PositionType.BASIC,
     **kwargs,
   ):
     """
-    Opens a new position with the given amount.
+    Opens a new position with the given amount and entry price.
     If there is an existing position, it closes it first.
 
     :param amount: The amount to invest in the new position.
+    :param entry_price: The entry price for the position.
     :param timeFrame: The timeframe for the position (default: ONEDAY).
     :param position_type: Type of position to create (default: BASIC).
     :param kwargs: Additional parameters for specific position types
                    (e.g., stopLossPercent for STOP_LOSS positions)
     :type amount: float
+    :type entry_price: float
     :type timeFrame: data.TimeFrame
     :type position_type: PositionType
     :raises Exception: if the amount is less than the smallest investment
@@ -263,20 +266,29 @@ class PositionHub:
     # Create position with correct arguments based on type
     if position_type == PositionType.STOP_LOSS:
       stop_loss_percent = kwargs.get("stopLossPercent", 5.0)
+      order_type = kwargs.get("orderType", OrderType.LONG)
       position = position_class(
+        entry_price=entry_price,
         amount=amount,
         timeFrame=timeFrame,
         stopLossPercent=stop_loss_percent,
+        orderType=order_type,
       )
     elif position_type == PositionType.BASIC:
+      order_type = kwargs.get("orderType", OrderType.LONG)
       position = position_class(
+        entry_price=entry_price,
         amount=amount,
         timeFrame=timeFrame,
+        orderType=order_type,
       )
     else:
+      order_type = kwargs.get("orderType", OrderType.LONG)  # otherwise long
       position = position_class(
+        entry_price=entry_price,
         amount=amount,
         timeFrame=timeFrame,
+        orderType=order_type,
       )
 
     # Add position to hub
@@ -403,7 +415,8 @@ class PositionManagement:
       currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
 
       for pos in positions:
-        pos.close(currentPrice)
+        if pos.isOpen:  # Only close if position is still open
+          pos.close(currentPrice)
     except Exception as e:
       print(f"Error while closing remaining positions: {e}")
       raise e

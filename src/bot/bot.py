@@ -94,10 +94,18 @@ class Bot(ABC):  # trading bot interface
       self.position_management.data.getDataAtIndex(i)["c"] for i in range(self.position_management.data.getDataLength())
     ]
 
+    # Get the starting index - use long_window if bot has it, otherwise start from 0
+    start_idx = getattr(self, "long_window", 0)
+
     # Execute trades on each tick
-    for idx in range(self.long_window, len(closing_prices)):
+    for idx in range(start_idx, len(closing_prices)):
       window_prices = closing_prices[: idx + 1]
       self.actOnTick(window_prices, idx)
+
+    # Close all remaining open positions at the end
+    last_idx = len(closing_prices) - 1
+    if last_idx >= 0:
+      self.position_management.closeAllRemainingOpenPositions(last_idx)
 
     # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
     profit_loss_list = self.position_management.evaluate()
