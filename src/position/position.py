@@ -370,7 +370,7 @@ class PositionManagement:
     :rtype: None
     """
     self._set_tax_rate(tax_rate)
-    self.positionHub = PositionHub()
+    self.position_hub = PositionHub()
     self.balance = balance
     self.limit = limit  # limit of investing assets
     self.data = data
@@ -382,7 +382,7 @@ class PositionManagement:
     :rtype: None
     """
     try:
-      for pos in self.positionHub.getAllPositions():
+      for pos in self.position_hub.getAllPositions():
         if pos.positionType == PositionType.STOP_LOSS and pos.isOpen:
           dataPoint = self.data.getDataAtIndex(current_idx)
           currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
@@ -398,7 +398,7 @@ class PositionManagement:
     :rtype: None
     """
     try:
-      positions = self.positionHub.getAllPositions()
+      positions = self.position_hub.getAllPositions()
       dataPoint = self.data.getDataAtIndex(current_idx)
       currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
 
@@ -415,7 +415,7 @@ class PositionManagement:
     :rtype: list[float]
     """
 
-    positions = self.positionHub.getAllPositions()
+    positions = self.position_hub.getAllPositions()
     profitLossPerTick = []
 
     for pos in positions:

@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple, override
 from src.bot.bot import Bot
 from src.constants.constants import BotAction
 from src.data.data import Data, TimeFrame
-from src.position.position import PositionHub, PositionSimulation, PositionType
+from src.position.position import PositionHub, PositionManagement, PositionType
 
 
 class SMABot(Bot):
@@ -42,7 +42,7 @@ class SMABot(Bot):
     amount: float = 1.0,
   ) -> None:
     """Initialize the SMABot with parameters."""
-    super().__init__(name)
+    super().__init__(name, data)
 
     # Validate parameters
     if short_window >= long_window:
@@ -61,7 +61,7 @@ class SMABot(Bot):
     if not isinstance(timeFrame, TimeFrame):
       raise ValueError("data.timeFrame must be a TimeFrame enum")
 
-    self.simulation: PositionSimulation = PositionSimulation(data)
+    self.position_management: PositionManagement = PositionManagement(data)
     self.short_window: int = short_window
     self.long_window: int = long_window
     self.stop_loss_percent: float = stop_loss_percent
@@ -125,7 +125,7 @@ class SMABot(Bot):
     :rtype: str
     """
     try:
-      self.position_hub.openNewPosition(
+      self.position_management.position_hub.openNewPosition(
         amount=self.amount,
         timeFrame=self.timeFrame,
         currentIdx=current_idx,
@@ -157,7 +157,7 @@ class SMABot(Bot):
     :rtype: BotAction
     """
     try:
-      self.position_hub.closeLatestPosition()
+      self.position_management.position_hub.closeLatestPosition()
       self.in_position = False
       self.trade_history.append(
         {
@@ -189,35 +189,9 @@ class SMABot(Bot):
     return short_sma is not None and long_sma is not None and short_sma > long_sma
 
   @override
-  def run(self) -> Tuple[List[Dict], float]:
-    """
-    Run the Bot through all data points and execute trades.
-
-    Iterates through all price data and calls actOnTick for each point,
-    which in turn calls decide_and_trade to handle all trading logic.
-
-    :return: Tuple of (trade_history, profit_loss)
-    :rtype: Tuple[List[Dict], float]
-    """
-    closing_prices = [self.simulation.data.getDataAtIndex(i)["c"] for i in range(self.simulation.data.getDataLength())]
-
-    # Execute trades on each tick
-    for idx in range(self.long_window, len(closing_prices)):
-      window_prices = closing_prices[: idx + 1]
-      self.actOnTick(window_prices, idx)
-
-    # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
-    profit_loss_list = self.simulation.reevaluate()
-
-    # Sum all profit/loss values to get total P/L
-    total_profit_loss = sum(profit_loss_list) if profit_loss_list else 0.0
-
-    return self.trade_history, total_profit_loss
-
-  @override
   def reset(self) -> None:
     """Reset the Bot to its initial state."""
-    self.position_hub = PositionHub()
+    self.position_management.position_hub = PositionHub()
     self.in_position = False
     self.last_entry_idx = 0
     self.trade_history = []
