@@ -38,7 +38,7 @@ test = { cmd = "pytest -s", cwd = "src/tests/" }
 "test::position" = { cmd = "pytest -s test_position.py", cwd = "src/tests/", env = { PYTHONPATH = "./" } }
 
 [tasks.docs]
-cmd = "pdoc src"
+cmd = "pdoc src !src.tests"
 env = { PYTHONPATH = "./src" }
 
 [tasks."docs:saved"]
