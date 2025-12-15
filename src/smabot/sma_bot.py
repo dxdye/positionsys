@@ -231,10 +231,13 @@ class SMABot(Bot):
     # Get data length once to avoid repeated calls
     data_length = self.position_management.data.getDataLength()
 
+    # Get all closing prices once
+    all_closing_prices = self.position_management.data.get_closing_prices()
+
     # Start from long_window since we need that many points for SMA calculation
     for idx in range(self.long_window, data_length):
-      # Build price window up to current index
-      window_prices = [self.position_management.data.getDataAtIndex(i)["c"] for i in range(idx + 1)]
+      # Use closing prices up to current index
+      window_prices = all_closing_prices[: idx + 1]
       self.actOnTick(window_prices, idx)
 
     # Close all remaining open positions at the end

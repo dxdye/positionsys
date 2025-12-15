@@ -201,7 +201,7 @@ class Data:
     """
     return self.length
 
-  def getClosingPrices(self) -> list[float]:
+  def get_closing_prices(self) -> list[float]:
     """
     Get all closing prices from the loaded data.
     :return: list of closing prices
@@ -210,6 +210,9 @@ class Data:
     """
     if not self.loaded:
       raise RuntimeError("data not loaded yet")
+
+    if self.schema == consts.DataValidationSchemas.ALPACA_BTC_SCHEMA:
+      return [self.data[i]["c"] for i in range(self.length)]
     return [self.data[i]["c"] for i in range(self.length)]
 
   def getFromFile(self):
