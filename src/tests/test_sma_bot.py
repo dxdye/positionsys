@@ -29,6 +29,10 @@ class DummyData:
     """Get total number of data points."""
     return len(self._prices)
 
+  def get_closing_prices(self):
+    """Return the list of closing prices (for compatibility with real Data)."""
+    return self._prices
+
 
 # Load all feature files
 # Wrapped in try-except to handle cases where pytest config is not available (e.g., pdoc import)
