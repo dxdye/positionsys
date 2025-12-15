@@ -1,7 +1,6 @@
 import sys
 import urllib
 from datetime import datetime
-from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -11,9 +10,9 @@ from src.data.data import AlpacaAvailablePairs, Data, Endpoint, TimeFrame, valid
 sys.path.append("../")  # appends upper directory
 
 
-def test_fetch_from_remote_success():
+def test_fetch_from_remote_success(mocker):
   # Arrange
-  mock_response = MagicMock()
+  mock_response = mocker.MagicMock()
   mock_response.status_code = 200
   mock_response.json.return_value = {
     "bars": {
@@ -24,36 +23,38 @@ def test_fetch_from_remote_success():
     }
   }
 
-  with patch("src.data.data.requests.get", return_value=mock_response):
-    data_instance = Data(
-      symbol=AlpacaAvailablePairs.BTCUSD,
-      timeFrame=TimeFrame.ONEDAY,
-      endpoint=Endpoint.ALPACAEP0,
-    )
+  mocker.patch("src.data.data.requests.get", return_value=mock_response)
 
-    # Act
-    status_code = data_instance.fetchFromRemote()
+  data_instance = Data(
+    symbol=AlpacaAvailablePairs.BTCUSD,
+    timeFrame=TimeFrame.ONEDAY,
+    endpoint=Endpoint.ALPACAEP0,
+  )
 
-    # Assert
-    assert status_code == 200
-    assert data_instance.getDataLength() == 2
-    assert data_instance.data == mock_response.json()["bars"]["BTC/USD"]
+  # Act
+  status_code = data_instance.fetch_from_remote()
+
+  # Assert
+  assert status_code == 200
+  assert data_instance.getDataLength() == 2
+  assert data_instance.data == mock_response.json()["bars"]["BTC/USD"]
 
 
-def test_fetch_from_remote_http_error():
+def test_fetch_from_remote_http_error(mocker):
   # Arrange
-  mock_response = MagicMock()
+  mock_response = mocker.MagicMock()
   mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
 
-  with patch("src.data.data.requests.get", return_value=mock_response):
-    data_instance = Data(
-      symbol=AlpacaAvailablePairs.BTCUSD,
-      timeFrame=TimeFrame.ONEDAY,
-    )
+  mocker.patch("src.data.data.requests.get", return_value=mock_response)
 
-    # Act & Assert
-    with pytest.raises(SystemExit):
-      data_instance.fetchFromRemote()
+  data_instance = Data(
+    symbol=AlpacaAvailablePairs.BTCUSD,
+    timeFrame=TimeFrame.ONEDAY,
+  )
+
+  # Act & Assert
+  with pytest.raises(SystemExit):
+    data_instance.fetch_from_remote()
 
 
 def test_data_initialization():
@@ -66,7 +67,7 @@ def test_data_initialization():
     start=start_date,
     end=end_date,
     limit=500,
-    fetchedFromRemote=False,
+    fetched_from_remote=False,
   )
 
   # Assert
@@ -75,7 +76,7 @@ def test_data_initialization():
   assert data_instance.start == start_date
   assert data_instance.end == end_date
   assert data_instance.limit == 500
-  assert data_instance.fetchedFromRemote is False
+  assert data_instance.fetched_from_remote is False
   assert data_instance.getDataLength() == 0
 
 
@@ -87,7 +88,7 @@ def test_build_url():
   )
 
   # Act
-  url = data_instance.buildUrl()
+  url = data_instance._build_url()
   decoded_url = urllib.parse.unquote(url)
 
   # Assert
@@ -110,7 +111,7 @@ def test_build_url_custom_parameters():
   )
 
   # Act
-  url = data_instance.buildUrl()
+  url = data_instance._build_url()
   decoded_url = urllib.parse.unquote(url)
 
   # Assert
@@ -121,51 +122,53 @@ def test_build_url_custom_parameters():
   assert "2025-01-31" in decoded_url
 
 
-def test_fetch_from_remote_empty_data():
+def test_fetch_from_remote_empty_data(mocker):
   # Arrange
-  mock_response = MagicMock()
+  mock_response = mocker.MagicMock()
   mock_response.status_code = 200
   mock_response.json.return_value = {"bars": {"BTC/USD": []}}
 
-  with patch("src.data.data.requests.get", return_value=mock_response):
-    data_instance = Data(
-      symbol=AlpacaAvailablePairs.BTCUSD,
-      timeFrame=TimeFrame.ONEDAY,
-    )
+  mocker.patch("src.data.data.requests.get", return_value=mock_response)
 
-    # Act
-    status_code = data_instance.fetchFromRemote()
+  data_instance = Data(
+    symbol=AlpacaAvailablePairs.BTCUSD,
+    timeFrame=TimeFrame.ONEDAY,
+  )
 
-    # Assert
-    assert status_code == 200
-    assert data_instance.getDataLength() == 0
-    assert data_instance.data == []
+  # Act
+  status_code = data_instance.fetch_from_remote()
+
+  # Assert
+  assert status_code == 200
+  assert data_instance.getDataLength() == 0
+  assert data_instance.data == []
 
 
-def test_fetch_from_remote_large_dataset():
+def test_fetch_from_remote_large_dataset(mocker):
   # Arrange
   large_dataset = [
     {"t": f"2025-06-{i:02d}T00:00:00Z", "o": i, "h": i + 1, "l": i - 1, "c": i + 0.5, "v": i * 100}
     for i in range(1, 31)
   ]
-  mock_response = MagicMock()
+  mock_response = mocker.MagicMock()
   mock_response.status_code = 200
   mock_response.json.return_value = {"bars": {"BTC/USD": large_dataset}}
 
-  with patch("src.data.data.requests.get", return_value=mock_response):
-    data_instance = Data(
-      symbol=AlpacaAvailablePairs.BTCUSD,
-      timeFrame=TimeFrame.ONEDAY,
-      limit=1000,
-    )
+  mocker.patch("src.data.data.requests.get", return_value=mock_response)
 
-    # Act
-    status_code = data_instance.fetchFromRemote()
+  data_instance = Data(
+    symbol=AlpacaAvailablePairs.BTCUSD,
+    timeFrame=TimeFrame.ONEDAY,
+    limit=1000,
+  )
 
-    # Assert
-    assert status_code == 200
-    assert data_instance.getDataLength() == 30
-    assert len(data_instance.data) == 30
+  # Act
+  status_code = data_instance.fetch_from_remote()
+
+  # Assert
+  assert status_code == 200
+  assert data_instance.getDataLength() == 30
+  assert len(data_instance.data) == 30
 
 
 def test_fetch_from_remote_not_remote_raises_error():
@@ -173,12 +176,12 @@ def test_fetch_from_remote_not_remote_raises_error():
   data_instance = Data(
     symbol=AlpacaAvailablePairs.BTCUSD,
     timeFrame=TimeFrame.ONEDAY,
-    fetchedFromRemote=False,
+    fetched_from_remote=False,
   )
 
   # Act & Assert
   with pytest.raises(Exception):
-    data_instance.fetchFromRemote()
+    data_instance.fetch_from_remote()
 
 
 def test_validate_instance_valid_data():
