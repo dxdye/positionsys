@@ -106,7 +106,7 @@ class SMABot(Bot):
     :return: Trading decision - BotAction.BUY, BotAction.SELL, or BotAction.HOLD
     :rtype: BotAction
     """
-    # CRITICAL: Check stop-loss conditions for all positions on every tick
+    # Kritisch: Check stop-loss conditions for all positions on every tick
     self.position_management.closeAllPositionsOnCondition(current_idx)
 
     # Calculate SMAs

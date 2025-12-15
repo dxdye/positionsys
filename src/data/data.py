@@ -30,7 +30,14 @@ START = datetime(2025, 6, 1, 0, 0)
 END = datetime(2025, 6, 30, 0, 0)
 
 
-class AlpacaAvailablePairs(Enum):
+class AvailablePairs(Enum):
+  """
+  Enum for available trading pairs.
+  Currently includes BTC/USD and TSLA/USD.
+  """
+
+
+class AlpacaAvailablePairs(AvailablePairs):
   """
   Enum for available trading pairs on Alpaca.
   Currently includes BTC/USD and TSLA/USD.
@@ -70,14 +77,14 @@ class Data:
   :param end: end datetime for the data
   :param limit: maximum number of data points to fetch
   :param endpoint: API endpoint to fetch data from
-  :param fetchedFromRemote: whether to fetch data from remote or local file
+  :param fetched_from_remote: whether to fetch data from remote or local file
   :type symbol: AlpacaAvailablePairs
   :type timeFrame: TimeFrame
   :type start: datetime
   :type end: datetime
   :type limit: int
   :type endpoint: Endpoint
-  :type fetchedFromRemote: bool
+  :type fetched_from_remote: bool
   :raises SystemExit: if there is an HTTP error during data fetching
   :return: None
   :rtype: None
@@ -91,7 +98,8 @@ class Data:
     end: datetime = END,
     limit: int = 1000,
     endpoint: Endpoint = Endpoint.ALPACAEP0,
-    fetchedFromRemote: bool = True,
+    schema=consts.DataValidationSchemas.ALPACA_BTC_SCHEMA,
+    fetched_from_remote: bool = True,
   ):
     """Constructor for Data class.
     Initializes the Data object with the given parameters.
@@ -101,30 +109,32 @@ class Data:
     :param end: end datetime for the data
     :param limit: maximum number of data points to fetch
     :param endpoint: API endpoint to fetch data from
-    :param fetchedFromRemote: whether to fetch data from remote or local file
+    :param fetched_from_remote: whether to fetch data from remote or local file
     :type symbol: AlpacaAvailablePairs
     :type timeFrame: TimeFrame
     :type start: datetime
     :type end: datetime
     :type limit: int
     :type endpoint: Endpoint
-    :type fetchedFromRemote: bool
+    :type fetched_from_remote: bool
     :return: None
     :rtype: None
     """
-    self.symbol = symbol
+    self.symbol: AvailablePairs = symbol
     self.timeFrame = timeFrame
+    self.schema = schema.value
     self.ep = endpoint
     self.limit = limit
-    self.fetchedFromRemote = fetchedFromRemote
     self.start = start
     self.end = end
+    self.fetched_from_remote = fetched_from_remote
+
     self.length = 0
     self.loaded = False
 
   # self.fetchFromRemote();  could be defaultly executed..
 
-  def buildUrl(self):
+  def _build_url(self):
     """
     Build the URL for fetching data from the API endpoint.
     :return: URL string with query parameters
@@ -144,23 +154,26 @@ class Data:
     url += urllib.parse.urlencode(params)
     return url
 
-  def fetchFromRemote(self):
+  def fetch_from_remote(self):
     """
     Fetch data from the remote API endpoint.
     :return: HTTP status code of the response
     :rtype: int
     :raises SystemExit: if there is an HTTP error during data fetching
     """
-    if not self.fetchedFromRemote:
-      raise "resource should be fetched from file.. pls think about this."
-    url = self.buildUrl()
+    if not self.fetched_from_remote:
+      raise "resource should be fetched from file"
+    url = self._build_url()
     try:
       r = requests.get(url)  # will be the data parsed into json
       r.raise_for_status()
-      self.data = r.json()["bars"]["BTC/USD"]  # defaultly take those values
+      self.data = r.json()["bars"][self.symbol.value]
+      self.data = validateInstance(self.data, self.schema)
       self.length = len(self.data)
+
       if r.status_code == 200:
         self.loaded = True
+
       return r.status_code
     except requests.exceptions.HTTPError as err:
       raise SystemExit(err)
