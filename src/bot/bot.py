@@ -91,18 +91,18 @@ class Bot(ABC):  # trading bot interface
     :rtype: Tuple[List[Dict], float]
     """
     # Get data length once to avoid repeated calls
-    data_length = self.position_management.data.getDataLength()
+    data_length = self.position_management.data.get_data_length()
 
     # Execute trades on each tick from start to end
     for idx in range(data_length):
       # Build price window up to current index
       window_prices = self.position_management.data.get_closing_prices()
-      self.actOnTick(window_prices, idx)
+      self.act_on_tick(window_prices, idx)
 
     # Close all remaining open positions at the end
     last_idx = data_length - 1
     if last_idx >= 0:
-      self.position_management.closeAllRemainingOpenPositions(last_idx)
+      self.position_management.close_all_positions_on_condition(last_idx)
 
     # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
     profit_loss_list = self.position_management.evaluate()
@@ -148,9 +148,9 @@ class Bot(ABC):  # trading bot interface
     :return: List of all positions
     :rtype: List[Position]
     """
-    return self.position_hub.getAllPositions()
+    return self.position_management.position_hub.get_all_positions()
 
-  def actOnTick(self, priceData: List[float], currentIdx: int) -> None:
+  def act_on_tick(self, priceData: List[float], currentIdx: int) -> None:
     """
     Implementation of abstract method from bot interface.
     Acts on each tick of price data using the SMA crossover strategy.
@@ -168,7 +168,7 @@ class Bot(ABC):  # trading bot interface
       # Decision is already handled by decide_and_trade
       # No need to do anything else here
     except Exception as e:
-      print(f"Error in actOnTick at index {currentIdx}: {type(e).__name__}: {e}")
+      print(f"Error in act_on_tick at index {currentIdx}: {type(e).__name__}: {e}")
       import traceback
 
       traceback.print_exc()

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from src.data import data
 
 
-def mapIndexToTime(timeFrame: data.TimeFrame, index: int) -> datetime:
+def map_index_to_time(timeFrame: data.TimeFrame, index: int) -> datetime:
   """
   Maps the index of the data to the corresponding time based on the given timeframe.
   :param timeFrame: The timeframe of the data.

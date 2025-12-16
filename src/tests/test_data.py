@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 import requests
 
-from src.data.data import AlpacaAvailablePairs, Data, Endpoint, TimeFrame, validateInstance
+from src.data.data import AlpacaAvailablePairs, Data, Endpoint, TimeFrame, validate_instance
 
 sys.path.append("../")  # appends upper directory
 
@@ -36,7 +36,7 @@ def test_fetch_from_remote_success(mocker):
 
   # Assert
   assert status_code == 200
-  assert data_instance.getDataLength() == 2
+  assert data_instance.get_data_length() == 2
   assert data_instance.data == mock_response.json()["bars"]["BTC/USD"]
 
 
@@ -77,7 +77,7 @@ def test_data_initialization():
   assert data_instance.end == end_date
   assert data_instance.limit == 500
   assert data_instance.fetched_from_remote is False
-  assert data_instance.getDataLength() == 0
+  assert data_instance.get_data_length() == 0
 
 
 def test_build_url():
@@ -140,7 +140,7 @@ def test_fetch_from_remote_empty_data(mocker):
 
   # Assert
   assert status_code == 200
-  assert data_instance.getDataLength() == 0
+  assert data_instance.get_data_length() == 0
   assert data_instance.data == []
 
 
@@ -167,7 +167,7 @@ def test_fetch_from_remote_large_dataset(mocker):
 
   # Assert
   assert status_code == 200
-  assert data_instance.getDataLength() == 30
+  assert data_instance.get_data_length() == 30
   assert len(data_instance.data) == 30
 
 
@@ -192,7 +192,7 @@ def test_validate_instance_valid_data():
   ]
 
   # Act
-  result = validateInstance(valid_data)
+  result = validate_instance(valid_data)
 
   # Assert
   assert result == valid_data
@@ -206,7 +206,7 @@ def test_validate_instance_invalid_data_missing_field():
 
   # Act & Assert
   with pytest.raises(Exception):
-    validateInstance(invalid_data)
+    validate_instance(invalid_data)
 
 
 def test_validate_instance_invalid_data_wrong_type():
@@ -217,7 +217,7 @@ def test_validate_instance_invalid_data_wrong_type():
 
   # Act & Assert
   with pytest.raises(Exception):
-    validateInstance(invalid_data)
+    validate_instance(invalid_data)
 
 
 def test_get_data_length_before_fetch():
@@ -228,7 +228,7 @@ def test_get_data_length_before_fetch():
   )
 
   # Act
-  length = data_instance.getDataLength()
+  length = data_instance.get_data_length()
 
   # Assert
   assert length == 0

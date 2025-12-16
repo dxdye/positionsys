@@ -17,12 +17,12 @@ class DummyData:
     self._prices = closing_prices
     self.timeFrame = timeFrame
 
-  def getDataAtIndex(self, idx):
+  def get_data_at_index(self, idx):
     if idx < 0 or idx >= len(self._prices):
       raise IndexError(f"Index {idx} out of range")
     return {"c": self._prices[idx], "o": self._prices[idx]}
 
-  def getDataLength(self):
+  def get_data_length(self):
     return len(self._prices)
 
 
@@ -234,7 +234,7 @@ class TestPositionHub:
   def test_position_hub_get_all_positions_empty(self):
     """Test getting all positions from empty hub."""
     hub = PositionHub()
-    positions = hub.getAllPositions()
+    positions = hub.get_all_positions()
 
     assert positions == []
 
@@ -243,24 +243,24 @@ class TestPositionHub:
     hub = PositionHub()
     amount = 1.0
 
-    # This will currently fail because openNewPosition doesn't accept entry_price
+    # This will currently fail becaus.open_new_position doesn't accept entry_price
     # but Position.__init__ requires it
     with pytest.raises(TypeError):
-      hub.openNewPosition(amount)
+      hub.open_new_position(amount)
 
   def test_position_hub_open_new_position_too_small(self):
     """Test that opening position with amount < SMALLEST_INVEST raises exception."""
     hub = PositionHub()
 
     with pytest.raises(Exception, match="amount should be bigger than smallest possible invest"):
-      hub.openNewPosition(amount=0.001, entry_price=100.0)
+      hub.open_new_position(amount=0.001, entry_price=100.0)
 
   def test_position_hub_open_position_object(self):
     """Test opening a position using a position object."""
     hub = PositionHub()
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
 
-    hub.openPositionObject(position)
+    hub.open_position_object(position)
 
     assert len(hub.positions) == 1
     assert hub.length == 1
@@ -271,20 +271,20 @@ class TestPositionHub:
     hub = PositionHub()
 
     with pytest.raises(TypeError, match="position must be an instance of Position"):
-      hub.openPositionObject("not a position")
+      hub.open_position_object("not a position")
 
   def test_position_hub_close_latest_position(self):
     """Test closing the latest position."""
     hub = PositionHub()
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
-    hub.openPositionObject(position)
+    hub.open_position_object(position)
 
     # Verify position was created
     assert len(hub.positions) > 0, "Position was not created"
     assert hub.positions[-1].isOpen is True, "Position should be open"
 
     # Close the position
-    hub.closeLatestPosition(close_price=105.0)
+    hub.close_latest_position(close_price=105.0)
 
     # Verify position was closed
     assert hub.positions[-1].isOpen is False, "Position should be closed"
@@ -295,27 +295,27 @@ class TestPositionHub:
     hub = PositionHub()
 
     with pytest.raises(TypeError, match="No positions exist to close"):
-      hub.closeLatestPosition(close_price=100.0)
+      hub.close_latest_position(close_price=100.0)
 
   def test_position_hub_check_consistency(self):
     """Test the consistency check method."""
     hub = PositionHub()
 
     # Should pass with empty hub
-    hub.checkConsistency()
+    hub.check_consistency()
 
     # Add a position properly
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
-    hub.openPositionObject(position)
+    hub.open_position_object(position)
 
     # Should pass when consistent
-    hub.checkConsistency()
+    hub.check_consistency()
 
     # Make it inconsistent
     hub.length = 999
 
     with pytest.raises(Exception, match="length is representative for the positionId"):
-      hub.checkConsistency()
+      hub.check_consistency()
 
   def test_position_hub_get_positions_by_type(self):
     """Test getting positions by type."""
@@ -334,11 +334,11 @@ class TestPositionHub:
     hub.length += 1
 
     # Get basic positions
-    basic_positions = hub.getPositionsByType(Position)
+    basic_positions = hub.get_positions_by_type(Position)
     assert len(basic_positions) == 2  # StopLossPosition is also a Position
 
     # Get stop loss positions
-    stop_loss_positions = hub.getPositionsByType(StopLossPosition)
+    stop_loss_positions = hub.get_positions_by_type(StopLossPosition)
     assert len(stop_loss_positions) == 1
     assert stop_loss_positions[0] == pos2
 
@@ -448,7 +448,7 @@ class TestPositionManagement:
     management.position_hub.length = 2
 
     # Close all positions at index 0
-    management.closeAllRemainingOpenPositions(current_idx=0)
+    management.close_all_remaining_open_positions(current_idx=0)
 
     # All positions should be closed
     assert pos1.isOpen is False
@@ -466,7 +466,7 @@ class TestPositionManagement:
     management.position_hub.length = 1
 
     # Current price at index 0 is 100, should not trigger stop loss
-    management.closeAllPositionsOnCondition(current_idx=0)
+    management.close_all_positions_on_condition(current_idx=0)
     assert pos.isOpen is True
 
 
@@ -499,16 +499,16 @@ class TestPositionIntegration:
 
     # Open position using position object
     position = Position(entry_price=100.0, amount=1.0, timeFrame=TimeFrame.ONEDAY)
-    hub.openPositionObject(position)
+    hub.open_position_object(position)
     assert hub.length == 1
 
     # Get positions
-    positions = hub.getAllPositions()
+    positions = hub.get_all_positions()
     assert len(positions) == 1
     assert positions[0] == position
 
     # Close latest position
-    hub.closeLatestPosition(close_price=105.0)
+    hub.close_latest_position(close_price=105.0)
     assert positions[0].isOpen is False
 
   def test_position_management_workflow(self, dummy_data):

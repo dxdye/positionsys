@@ -53,7 +53,11 @@ class Position:
     """
     Initializes a Position instance.
     :param amount: The amount of (shares, contracts, equity etc.) invested in the position.
+    :param entry_price: The entry price of the position.
     :param timeFrame: The timeframe of the position.
+    :param orderType: The order type of the position (LONG or SHORT).
+    :type entry_price: float
+    :type orderType: OrderType
     :type amount: float
     :type timeFrame: data.TimeFrame
     :return: None
@@ -96,9 +100,13 @@ class StopLossPosition(Position):
   Inherits from the Position class.
   :param amount: The amount invested in the position.
   :param timeFrame: The timeframe of the position.
+  :param entryPrice: The entry price of the position.
+  :param orderType: The order type of the position (LONG or SHORT).
   :param stopLossPercent: The stop-loss percentage for the position.
   :type amount: float
   :type timeFrame: data.TimeFrame
+  :type entryPrice: float
+  :type orderType: OrderType
   :type stopLossPercent: float
   :raises ValueError: if stopLossPercent is not between 0 and 100
   :return: None
@@ -195,7 +203,7 @@ class PositionHub:
     }
     return position_mapping.get(position_type, Position)
 
-  def checkConsistency(self):
+  def check_consistency(self):
     """
     Checks the consistency of the positions in the hub.
     :return: None
@@ -206,7 +214,7 @@ class PositionHub:
     if self.length != len(self.positions):
       raise Exception("length is representative for the positionId and should be updated accurately")
 
-  def closeLatestPosition(self, close_price: float):
+  def close_latest_position(self, close_price: float):
     """
     Closes the latest position in the hub if it is open.
     :return: None
@@ -222,7 +230,7 @@ class PositionHub:
     if latestPosition.isOpen:
       latestPosition.close(close_price)
 
-  def openNewPosition(
+  def open_new_position(
     self,
     amount: float,
     entry_price: float,
@@ -293,10 +301,10 @@ class PositionHub:
 
     # Add position to hub
     self.positions.append(position)
-    self.checkConsistency()
+    self.check_consistency()
     self.length += 1
 
-  def openPositionObject(self, position: Position):
+  def open_position_object(self, position: Position):
     """
     Opens an existing position object.
     Use this method to add pre-created position objects.
@@ -312,14 +320,13 @@ class PositionHub:
 
     # Close existing position if any
     if self.length >= 1:
-      self.closeLatestPosition()
-
+      self.close_latest_position()
     # Add position to hub
     self.positions.append(position)
-    self.checkConsistency()
+    self.check_consistency()
     self.length += 1
 
-  def getAllPositions(self) -> list[Position]:
+  def get_all_positions(self) -> list[Position]:
     """
     Retrieves all positions in the hub.
     :return: list of all positions
@@ -327,7 +334,7 @@ class PositionHub:
     """
     return self.positions
 
-  def getPositionsByType(self, position_type: Type[Position]) -> list[Position]:
+  def get_positions_by_type(self, position_type: Type[Position]) -> list[Position]:
     """
     Get all positions of a specific type.
 
@@ -387,31 +394,31 @@ class PositionManagement:
     self.limit = limit  # limit of investing assets
     self.data = data
 
-  def closeAllPositionsOnCondition(self, current_idx):
+  def close_all_positions_on_condition(self, current_idx):
     """
     Loops through all positions and close them if conditions are met
     :return: None
     :rtype: None
     """
     try:
-      for pos in self.position_hub.getAllPositions():
+      for pos in self.position_hub.get_all_positions():
         if pos.positionType == PositionType.STOP_LOSS and pos.isOpen:
-          dataPoint = self.data.getDataAtIndex(current_idx)
+          dataPoint = self.data.get_data_at_index(current_idx)
           currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
           pos.implicit_close(close_price=currentPrice)
     except Exception as e:
       print(f"Error while closing remaining positions: {e}")
       raise e
 
-  def closeAllRemainingOpenPositions(self, current_idx):
+  def close_all_remaining_open_positions(self, current_idx):
     """
     Used to close all remaining open positions, if simulation ends.
     :return: None
     :rtype: None
     """
     try:
-      positions = self.position_hub.getAllPositions()
-      dataPoint = self.data.getDataAtIndex(current_idx)
+      positions = self.position_hub.get_all_positions()
+      dataPoint = self.data.get_data_at_index(current_idx)
       currentPrice = dataPoint.get("c", dataPoint.get("o", 0))
 
       for pos in positions:
@@ -428,7 +435,7 @@ class PositionManagement:
     :rtype: list[float]
     """
 
-    positions = self.position_hub.getAllPositions()
+    positions = self.position_hub.get_all_positions()
     profitLossPerTick = []
 
     for pos in positions:
