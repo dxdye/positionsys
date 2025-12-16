@@ -19,13 +19,13 @@ class DummyData:
     self._prices = closing_prices
     self.timeFrame = timeFrame
 
-  def getDataAtIndex(self, idx):
+  def get_data_at_index(self, idx):
     """Get data point at index."""
     if idx < 0 or idx >= len(self._prices):
       raise IndexError(f"Index {idx} out of range")
     return {"c": self._prices[idx], "o": self._prices[idx]}
 
-  def getDataLength(self):
+  def get_data_length(self):
     """Get total number of data points."""
     return len(self._prices)
 
@@ -419,7 +419,7 @@ def check_amount(context, amount):
 @then("the bot should have no open positions")
 def check_no_open_positions(context):
   """Verify no open positions."""
-  open_positions = [p for p in context["bot"].position_management.position_hub.getAllPositions() if p.isOpen]
+  open_positions = [p for p in context["bot"].position_management.position_hub.get_all_positions() if p.isOpen]
   assert len(open_positions) == 0
 
 
@@ -470,7 +470,7 @@ def check_decision(context, decision):
 @then(parsers.parse("the bot should have {count:d} open positions"))
 def check_open_positions_count(context, count):
   """Verify number of open positions."""
-  open_positions = [p for p in context["bot"].position_management.position_hub.getAllPositions() if p.isOpen]
+  open_positions = [p for p in context["bot"].position_management.position_hub.get_all_positions() if p.isOpen]
   assert len(open_positions) == count
 
 
@@ -478,13 +478,13 @@ def check_open_positions_count(context, count):
 @then(parsers.parse("the bot should have {count:d} positions"))
 def check_positions_count(context, count):
   """Verify total number of positions."""
-  assert len(context["bot"].position_management.position_hub.getAllPositions()) == count
+  assert len(context["bot"].position_management.position_hub.get_all_positions()) == count
 
 
 @then("the position should be a StopLossPosition")
 def check_position_type(context):
   """Verify position type."""
-  positions = context["bot"].position_management.position_hub.getAllPositions()
+  positions = context["bot"].position_management.position_hub.get_all_positions()
   assert len(positions) > 0
   assert isinstance(positions[-1], StopLossPosition)
 
@@ -492,7 +492,7 @@ def check_position_type(context):
 @then("the position should be closed by stop loss")
 def check_position_closed_by_stop_loss(context):
   """Verify position was closed by stop loss."""
-  positions = context["bot"].position_management.position_hub.getAllPositions()
+  positions = context["bot"].position_management.position_hub.get_all_positions()
   assert len(positions) > 0
   # After stop loss trigger, position should be closed
   assert not positions[-1].isOpen
@@ -576,11 +576,11 @@ def check_profit_loss_is_number(context):
 @then(parsers.parse("there should be at most {count:d} open positions remaining"))
 def check_at_most_open_positions(context, count):
   """Verify at most N open positions."""
-  open_positions = [p for p in context["bot"].position_management.position_hub.getAllPositions() if p.isOpen]
+  open_positions = [p for p in context["bot"].position_management.position_hub.get_all_positions() if p.isOpen]
   assert len(open_positions) <= count
 
 
 @then("at least one position should have been created")
 def check_at_least_one_position_created(context):
   """Verify at least one position was created."""
-  assert len(context["bot"].position_management.position_hub.getAllPositions()) > 0
+  assert len(context["bot"].position_management.position_hub.get_all_positions()) > 0

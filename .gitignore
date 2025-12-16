@@ -10,4 +10,5 @@ junit.xml
 # pixi environments
 !.pixi/config.toml
 .pixi/*
+*.png 
 

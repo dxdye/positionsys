@@ -90,7 +90,7 @@ class SMABot(Bot):
     :return: True if there is an open position, False otherwise
     :rtype: bool
     """
-    open_positions = [p for p in self.position_management.position_hub.getAllPositions() if p.isOpen]
+    open_positions = [p for p in self.position_management.position_hub.get_all_positions() if p.isOpen]
     return len(open_positions) > 0
 
   @override
@@ -99,7 +99,7 @@ class SMABot(Bot):
     Decide whether to buy or sell based on SMA crossover strategy.
     This method is called for each tick and implements the trading logic.
 
-    IMPORTANT: Calls closeAllPositionsOnCondition for every tick to check stop-loss conditions.
+    IMPORTANT: Calls close_all_positions_on_condition for every tick to check stop-loss conditions.
 
     :param prices: List of closing prices up to current index (inclusive)
     :param current_idx: Current index in the data
@@ -107,7 +107,7 @@ class SMABot(Bot):
     :rtype: BotAction
     """
     # Kritisch: Check stop-loss conditions for all positions on every tick
-    self.position_management.closeAllPositionsOnCondition(current_idx)
+    self.position_management.close_all_positions_on_condition(current_idx)
 
     # Calculate SMAs
     short_sma = self.calculate_sma(prices, self.short_window)
@@ -146,7 +146,7 @@ class SMABot(Bot):
       if self._has_open_position():
         return BotAction.HOLD
 
-      self.position_management.position_hub.openNewPosition(
+      self.position_management.position_hub.open_new_position(
         entry_price=current_price,
         amount=self.amount,
         timeFrame=self.timeFrame,
@@ -180,7 +180,7 @@ class SMABot(Bot):
       if not self._has_open_position():
         return BotAction.HOLD
 
-      self.position_management.position_hub.closeLatestPosition(current_price)
+      self.position_management.position_hub.close_latest_position(current_price)
 
       self.trade_history.append(
         {
@@ -229,7 +229,7 @@ class SMABot(Bot):
     :rtype: Tuple[List[Dict], float]
     """
     # Get data length once to avoid repeated calls
-    data_length = self.position_management.data.getDataLength()
+    data_length = self.position_management.data.get_data_length()
 
     # Get all closing prices once
     all_closing_prices = self.position_management.data.get_closing_prices()
@@ -238,12 +238,12 @@ class SMABot(Bot):
     for idx in range(self.long_window, data_length):
       # Use closing prices up to current index
       window_prices = all_closing_prices[: idx + 1]
-      self.actOnTick(window_prices, idx)
+      self.act_on_tick(window_prices, idx)
 
     # Close all remaining open positions at the end
     last_idx = data_length - 1
     if last_idx >= 0:
-      self.position_management.closeAllRemainingOpenPositions(last_idx)
+      self.position_management.close_all_remaining_open_positions(last_idx)
 
     # Evaluate profit/loss - reevaluate() returns a list of P/L per tick
     profit_loss_list = self.position_management.evaluate()

@@ -8,7 +8,7 @@ import requests
 import src.constants.constants as consts
 
 
-def validateInstance(data, schema=consts.DataValidationSchemas.ALPACA_BTC_SCHEMA.value):
+def validate_instance(data, schema=consts.DataValidationSchemas.ALPACA_BTC_SCHEMA.value):
   """Validate data against a given JSON schema.
   :param data: data to be validated
   :param schema: JSON schema to validate against
@@ -98,7 +98,7 @@ class Data:
     end: datetime = END,
     limit: int = 1000,
     endpoint: Endpoint = Endpoint.ALPACAEP0,
-    schema=consts.DataValidationSchemas.ALPACA_BTC_SCHEMA,
+    schema: consts.DataValidationSchemas = consts.DataValidationSchemas.ALPACA_BTC_SCHEMA,
     fetched_from_remote: bool = True,
   ):
     """Constructor for Data class.
@@ -168,7 +168,7 @@ class Data:
       r = requests.get(url)  # will be the data parsed into json
       r.raise_for_status()
       self.data = r.json()["bars"][self.symbol.value]
-      self.data = validateInstance(self.data, self.schema)
+      self.data = validate_instance(self.data, self.schema)
       self.length = len(self.data)
 
       if r.status_code == 200:
@@ -178,7 +178,7 @@ class Data:
     except requests.exceptions.HTTPError as err:
       raise SystemExit(err)
 
-  def getDataAtIndex(self, index: int) -> dict:
+  def get_data_at_index(self, index: int) -> dict:
     """
     Get data point at the specified index.
     :param index: index of the data point to retrieve
@@ -193,7 +193,7 @@ class Data:
       raise IndexError("Index out of range")
     return self.data[index]
 
-  def getDataLength(self):
+  def get_data_length(self):
     """
     Get the length of the fetched data.
     :return: length of the data
@@ -215,7 +215,7 @@ class Data:
       return [self.data[i]["c"] for i in range(self.length)]
     return [self.data[i]["c"] for i in range(self.length)]
 
-  def getFromFile(self):
+  def get_from_file(self):
     """
     Fetch data from a local file.
     :return: None
