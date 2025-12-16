@@ -65,6 +65,16 @@ class Bot(ABC):  # trading bot interface
     :rtype: bool
     """
 
+  def _should_close_position(self, prices: List[float]) -> bool:
+    """
+    Optional and private: Determine if a new position should be closed.
+    _should_open_position should be enough for basic bots.
+
+    :param prices: List of prices
+    :return: True if position should be closed, False otherwise
+    :rtype: bool
+    """
+
   @abstractmethod
   def decide_and_trade(self, prices: List[float], current_idx: int) -> BotAction:
     """
